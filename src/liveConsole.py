@@ -260,6 +260,7 @@ class InteractiveConsoleText(tk.Text):
         """Setup all key and mouse bindings."""
         self.bind("<Return>", self.onEnter)
         self.bind("<Shift-Return>", self.onShiftEnter)
+        self.bind("<Control-c>", self.cancel)
         self.bind("<Tab>", self.onTab)
         self.bind("<BackSpace>", self.onBackspace)
         self.bind("<KeyRelease>", self.onKeyRelease)
@@ -269,7 +270,7 @@ class InteractiveConsoleText(tk.Text):
         self.bind("<Down>", self.onDown)
     
     # ========== Line and Position Management ==========
-    
+
     def getCurrentLineNumber(self):
         """Get the line number where current command starts."""
         return int(self.index("end-1c").split(".")[0])
@@ -435,6 +436,10 @@ class InteractiveConsoleText(tk.Text):
             if not self.isExecuting:
                 self.after_idle(self.suggestionManager.showSuggestions)
                 self.after_idle(self.highlightCurrentCommand)
+
+    def cancel(self, event):
+        self.history.add(self.getCurrentCommand())
+        self.replaceCurrentCommand("")
 
     def onUp(self, event):
         if self.getCurrentCommand() == "":
