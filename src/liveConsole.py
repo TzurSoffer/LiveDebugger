@@ -409,12 +409,16 @@ class InteractiveConsoleText(tk.Text):
                 return "break"
 
         # Prevent editing outside command area
-        if not event.keysym in ["Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
+        if not event.keysym in ["Shift_L", "Shift_R", "Control_L", "Control_R"]:
             self.navigatingHistory = False
             if not self.isCursorInEditableArea():
                 self.mark_set("insert", "end")
+
+        if event.keysym in ["Left", "Right"]:
+            if self.index("insert") == self.getPromptPosition():
+                self.mark_set("insert", "1.4")
                 return "break"
-    
+
     def onKeyRelease(self, event):
         """Handle key release events."""
         if event.keysym in ["Return", "Escape", "Left", "Right", "Home", "End"]:
