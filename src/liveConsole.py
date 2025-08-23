@@ -225,6 +225,8 @@ class InteractiveConsoleText(tk.Text):
         
         # Initialize components
         self.suggestionManager = CodeSuggestionManager(self)
+        
+        self.navigatingHistory = False
         self.history = CommandHistory()
         
         # Syntax highlighting setup
@@ -268,8 +270,6 @@ class InteractiveConsoleText(tk.Text):
         self.bind("<Button-1>", self.onClick)
         self.bind("<Up>", self.onUp)
         self.bind("<Down>", self.onDown)
-    
-    # ========== Line and Position Management ==========
 
     def getCurrentLineNumber(self):
         """Get the line number where current command starts."""
@@ -424,6 +424,7 @@ class InteractiveConsoleText(tk.Text):
 
         # Prevent editing outside command area
         if not event.keysym in ["Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
+            self.navigatingHistory = False
             if not self.isCursorInEditableArea():
                 self.mark_set("insert", "end")
                 return "break"
@@ -441,32 +442,27 @@ class InteractiveConsoleText(tk.Text):
         self.history.add(self.getCurrentCommand())
         self.replaceCurrentCommand("")
 
-    def onUp(self, event):
-        if self.getCurrentCommand() == "":
+    def historyReplace(self, command):
+        if self.getCurrentCommand() == "" or self.navigatingHistory:
             if self.isExecuting:
                 return "break"
-            
-            # Save current command if starting navigation
+
             if self.history.index == len(self.history.history):
                 self.history.setTemp(self.getCurrentCommand())
-            
-            prevCommand = self.history.navigateUp()
-            if prevCommand is not None:
-                self.replaceCurrentCommand(prevCommand)
-            
-            return "break"
+
+            if command is not None:
+                self.replaceCurrentCommand(command)
+                self.navigatingHistory = True
+            return("break")
+
+    def onUp(self, event):
+        command = self.history.navigateUp()
+        return(self.historyReplace(command))
         # self.mark_set("insert", "insert -1 line")
 
     def onDown(self, event):
-        if self.getCurrentCommand() == "":
-            if self.isExecuting:
-                return "break"
-
-            nextCommand = self.history.navigateDown()
-            if nextCommand is not None:
-                self.replaceCurrentCommand(nextCommand)
-
-            return "break"
+        command = self.history.navigateDown()
+        return(self.historyReplace(command))
 
     def isIncompleteStatement(self, code):
         """Check if the code is an incomplete statement."""
