@@ -16,6 +16,11 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
     
 *   Clickable history of previous commands
 
+## Installation
+
+`pip install pip install liveConsole`
+
+
 ## Features
 
 ### Syntax Highlighting
@@ -64,19 +69,12 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 *   Automatically grabs **caller frame globals and locals** if not provided.
     
 *   Can be used standalone or embedded in larger CustomTkinter applications.
-    
-
-## Installation
-
-`pip install customtkinter pygments`
-
-> `Tkinter` is included with Python on most platforms.
 
 ## Usage
 
 ```
 from liveConsole import InteractiveConsole
-InteractiveConsole().mainloop()
+InteractiveConsole().probe()
 ```
 
 *   Type Python commands in the `>>>` prompt and see live output.

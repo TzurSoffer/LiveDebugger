@@ -477,6 +477,9 @@ class InteractiveConsole(ctk.CTk):
 
         # Give console access to namespaces
         self.console.master = self
+    
+    def probe(self, *args, **kwargs):
+        self.mainloop(*args, **kwargs)
 
 # Example usage
 if __name__ == "__main__":
@@ -486,4 +489,4 @@ if __name__ == "__main__":
         print(f"Hello {name}!")
         return f"Greeted {name}"
 
-    InteractiveConsole().mainloop()
+    InteractiveConsole().probe()
