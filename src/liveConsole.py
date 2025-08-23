@@ -13,480 +13,628 @@ import builtins
 
 
 class StdoutRedirect(io.StringIO):
-    def __init__(self, write_callback):
+    """Redirects stdout/stderr to a callback function."""
+    
+    def __init__(self, writeCallback):
         super().__init__()
-        self.write_callback = write_callback
+        self.writeCallback = writeCallback
 
     def write(self, s):
         if s.strip():
-            self.write_callback(s, "output")
+            self.writeCallback(s, "output")
 
     def flush(self):
         pass
 
 
+class CodeSuggestionManager:
+    """Manages code suggestions and autocomplete functionality."""
+    
+    def __init__(self, textWidget):
+        self.textWidget = textWidget
+        self.suggestionWindow = None
+        self.suggestionListbox = None
+        self.suggestions = []
+        self.selectedSuggestion = 0
+        
+        # Build suggestion sources
+        self.keywords = keyword.kwlist
+        self.builtins = [name for name in dir(builtins) if not name.startswith('_')]
+    
+    def getCurrentWord(self):
+        """Extract the word being typed at cursor position."""
+        cursorPos = self.textWidget.index(tk.INSERT)
+        lineStart = self.textWidget.index(f"{cursorPos} linestart")
+        currentLine = self.textWidget.get(lineStart, cursorPos)
+        
+        # Find the current word
+        words = currentLine.split()
+        if not words:
+            return ""
+        
+        currentWord = words[-1]
+        # Handle cases like "print(" where we want to suggest after special chars
+        for char in "([{,.":
+            if char in currentWord:
+                currentWord = currentWord.split(char)[-1]
+        
+        return currentWord
+    
+    def getSuggestions(self, partialWord):
+        """Get code suggestions for partial word."""
+        if len(partialWord) < 2:
+            return []
+            
+        suggestions = []
+        
+        # Add matching keywords
+        for kw in self.keywords:
+            if kw.startswith(partialWord.lower()):
+                suggestions.append(kw)
+        
+        # Add matching builtins
+        for builtin in self.builtins:
+            if builtin.startswith(partialWord):
+                suggestions.append(builtin)
+        
+        # Add matching variables from namespace
+        master = self.textWidget.master
+        if hasattr(master, 'userLocals'):
+            for var in master.userLocals:
+                if var.startswith(partialWord) and not var.startswith('_'):
+                    suggestions.append(var)
+        
+        if hasattr(master, 'userGlobals'):
+            for var in master.userGlobals:
+                if var.startswith(partialWord) and not var.startswith('_'):
+                    suggestions.append(var)
+        
+        # Remove duplicates and sort
+        return sorted(list(set(suggestions)))[:10]
+    
+    def showSuggestions(self):
+        """Display the suggestions popup."""
+        currentWord = self.getCurrentWord()
+        suggestions = self.getSuggestions(currentWord)
+        
+        if not suggestions:
+            self.hideSuggestions()
+            return
+        
+        self.suggestions = suggestions
+        self.selectedSuggestion = 0
+        
+        # Create suggestion window if needed
+        if not self.suggestionWindow:
+            self._createSuggestionWindow()
+        
+        # Update listbox content
+        self.suggestionListbox.delete(0, tk.END)
+        for suggestion in suggestions:
+            self.suggestionListbox.insert(tk.END, suggestion)
+        
+        self.suggestionListbox.selection_set(0)
+        
+        # Position window near cursor
+        self._positionSuggestionWindow()
+        self.suggestionWindow.deiconify()
+    
+    def _createSuggestionWindow(self):
+        """Create the suggestion popup window."""
+        self.suggestionWindow = tk.Toplevel(self.textWidget)
+        self.suggestionWindow.wm_overrideredirect(True)
+        self.suggestionWindow.configure(bg="#2d2d2d")
+        
+        self.suggestionListbox = tk.Listbox(
+            self.suggestionWindow,
+            bg="#2d2d2d",
+            fg="white",
+            selectbackground="#0066cc",
+            font=("Consolas", 10),
+            height=8
+        )
+        self.suggestionListbox.pack()
+    
+    def _positionSuggestionWindow(self):
+        """Position the suggestion window near the cursor."""
+        cursorPos = self.textWidget.index(tk.INSERT)
+        x, y, _, _ = self.textWidget.bbox(cursorPos)
+        x += self.textWidget.winfo_rootx()
+        y += self.textWidget.winfo_rooty() + 20
+        self.suggestionWindow.geometry(f"+{x}+{y}")
+    
+    def hideSuggestions(self):
+        """Hide the suggestions popup."""
+        if self.suggestionWindow:
+            self.suggestionWindow.withdraw()
+    
+    def applySuggestion(self, suggestion=None):
+        """Apply the selected suggestion at cursor position."""
+        if not suggestion and self.suggestions:
+            suggestion = self.suggestions[self.selectedSuggestion]
+        if not suggestion:
+            return
+        
+        currentWord = self.getCurrentWord()
+        if suggestion.startswith(currentWord):
+            # Only insert the missing part
+            missingPart = suggestion[len(currentWord):]
+            cursorPos = self.textWidget.index(tk.INSERT)
+            self.textWidget.insert(cursorPos, missingPart)
+        
+        self.hideSuggestions()
+    
+    def handleNavigation(self, direction):
+        """Handle up/down navigation in suggestions."""
+        if not self.suggestions:
+            return
+            
+        if direction == "down":
+            self.selectedSuggestion = min(self.selectedSuggestion + 1, len(self.suggestions) - 1)
+        else:  # up
+            self.selectedSuggestion = max(self.selectedSuggestion - 1, 0)
+        
+        self.suggestionListbox.selection_clear(0, tk.END)
+        self.suggestionListbox.selection_set(self.selectedSuggestion)
+
+
+class CommandHistory:
+    """Manages command history and navigation."""
+    
+    def __init__(self):
+        self.history = []
+        self.index = -1
+        self.tempCommand = ""
+    
+    def add(self, command):
+        """Add a command to history."""
+        if command.strip():
+            self.history.append(command)
+            self.index = len(self.history)
+    
+    def navigateUp(self):
+        """Get previous command from history."""
+        if self.index > 0:
+            self.index -= 1
+            return self.history[self.index]
+        return None
+    
+    def navigateDown(self):
+        """Get next command from history."""
+        if self.index < len(self.history) - 1:
+            self.index += 1
+            return self.history[self.index]
+        elif self.index == len(self.history) - 1:
+            self.index = len(self.history)
+            return self.tempCommand
+        return None
+    
+    def setTemp(self, command):
+        """Store temporary command while navigating history."""
+        self.tempCommand = command
+
+
 class InteractiveConsoleText(tk.Text):
     """A tk.Text widget with Python syntax highlighting for interactive console."""
+    
+    PROMPT = ">>> "
+    PROMPT_LENGTH = 4
+    
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-
+        
+        # Initialize components
+        self.suggestionManager = CodeSuggestionManager(self)
+        self.history = CommandHistory()
+        
+        # Syntax highlighting setup
         self.lexer = PythonLexer()
         self.style = get_style_by_name("monokai")
-
-        # Configure tags for different output types
+        
+        # Track current command
+        self.currentCommandLine = 1
+        self.isExecuting = False
+        
+        # Setup tags and bindings
+        self._setupTags()
+        self._setupBindings()
+        
+        # Initialize with first prompt
+        self.addPrompt()
+    
+    def _setupTags(self):
+        """Configure text tags for different output types."""
         self.tag_configure("prompt", foreground="#00ff00", font=("Consolas", 12, "bold"))
         self.tag_configure("output", foreground="#ffffff", font=("Consolas", 12))
         self.tag_configure("error", foreground="#ff6666", font=("Consolas", 12))
         self.tag_configure("result", foreground="#66ccff", font=("Consolas", 12))
-        self.tag_configure("suggestion", background="#444444", foreground="#cccccc", font=("Consolas", 12))
-
-        # Apply tag configs for syntax highlighting
+        
+        # Configure syntax highlighting tags
         for token, style in self.style:
             if style["color"]:
                 fg = f"#{style['color']}"
                 font = ("Consolas", 12, "bold" if style["bold"] else "normal")
                 self.tag_configure(str(token), foreground=fg, font=font)
-
-        # Bind events
-        self.bind("<KeyRelease>", self.on_key_release)
-        self.bind("<Return>", self.on_enter)
-        self.bind("<Shift-Return>", self.on_shift_enter)
-        self.bind("<Button-1>", self.on_click)
-        self.bind("<KeyPress>", self.on_key_press)
-        self.bind("<Motion>", self.on_mouse_motion)
-        self.bind("<Tab>", self.on_tab)
-
-        # Track current command
-        self.current_prompt_start = None
-        self.current_prompt_end = None
-        self.command_history = []
-        self.history_index = -1
-        self.hover_command = None
-        self.suggestion_window = None
-        self.suggestions = []
-        self.selected_suggestion = 0
-
-        # Build suggestion lists
-        self.keywords = keyword.kwlist
-        self.builtins = [name for name in dir(builtins) if not name.startswith('_')]
+    
+    def _setupBindings(self):
+        """Setup all key and mouse bindings."""
+        self.bind("<Return>", self.onEnter)
+        self.bind("<Shift-Return>", self.onShiftEnter)
+        self.bind("<Tab>", self.onTab)
+        self.bind("<BackSpace>", self.onBackspace)
+        self.bind("<KeyRelease>", self.onKeyRelease)
+        self.bind("<KeyPress>", self.onKeyPress)
+        self.bind("<Button-1>", self.onClick)
+        self.bind("<Up>", self.onUp)
+        self.bind("<Down>", self.onDown)
+    
+    # ========== Line and Position Management ==========
+    
+    def getCurrentLineNumber(self):
+        """Get the line number where current command starts."""
+        return int(self.index("end-1c").split(".")[0])
+    
+    def getPromptPosition(self):
+        """Get the position right after the prompt on current command line."""
+        return f"{self.currentCommandLine}.{self.PROMPT_LENGTH}"
+    
+    def getCommandStartPosition(self):
+        """Get the starting position of the current command."""
+        return f"{self.currentCommandLine}.0"
+    
+    def getCurrentCommand(self):
+        """Extract the current command text (without prompt)."""
+        if self.isExecuting:
+            return ""
         
-        # Initialize with prompt
-        self.insert("end", ">>> ")
-        self.tag_add("prompt", "end-4c", "end")
-        self.current_prompt_start = self.index("end-4c")
+        start = self.getPromptPosition()
+        end = "end-1c"
+        return self.get(start, end)
+    
+    def replaceCurrentCommand(self, newCommand):
+        """Replace the current command with new text."""
+        if self.isExecuting:
+            return
+        
+        start = self.getPromptPosition()
+        end = "end-1c"
+        
+        self.delete(start, end)
+        self.insert(start, newCommand)
+
+    def isCursorInEditableArea(self):
+        """Check if cursor is in the editable command area."""
+        if self.isExecuting:
+            return False
+        
+        cursorLine = int(self.index("insert").split(".")[0])
+        cursorCol = int(self.index("insert").split(".")[1])
+        
+        return (cursorLine >= self.currentCommandLine and 
+                (cursorLine > self.currentCommandLine or cursorCol >= self.PROMPT_LENGTH))
+
+    def onEnter(self, event):
+        """Handle Enter key - execute command."""
+        self.suggestionManager.hideSuggestions()
+
+        if self.isExecuting:
+            return "break"
+
+        command = self.getCurrentCommand()
+
+        if not command.strip():
+            return "break"
+
+        # Check if statement is incomplete
+        if self.isIncompleteStatement(command):
+            return self.onShiftEnter(event)
+
+        # Execute the command
+        self.history.add(command)
         self.mark_set("insert", "end")
+        self.insert("end", "\n")
+        self.see("end")
 
-    def get_suggestions(self, partial_word):
-        """Get code suggestions for partial word."""
-        suggestions = []
+        # Execute in thread
+        self.isExecuting = True
+        threading.Thread(
+            target=self.executeCommandThreaded,
+            args=(command,),
+            daemon=True
+        ).start()
         
-        # Add matching keywords
-        for kw in self.keywords:
-            if kw.startswith(partial_word.lower()):
-                suggestions.append(kw)
+        return "break"
+    
+    def onShiftEnter(self, event):
+        """Handle Shift+Enter - new line with auto-indent."""
+        self.suggestionManager.hideSuggestions()
         
-        # Add matching builtins
-        for builtin in self.builtins:
-            if builtin.startswith(partial_word):
-                suggestions.append(builtin)
+        if self.isExecuting:
+            return "break"
         
-        # Add matching variables from namespace
-        if hasattr(self.master, 'userLocals'):
-            for var in self.master.userLocals:
-                if var.startswith(partial_word) and not var.startswith('_'):
-                    suggestions.append(var)
+        # Get current line for indent calculation
+        cursorPos = self.index("insert")
+        lineStart = self.index(f"{cursorPos} linestart")
+        lineEnd = self.index(f"{cursorPos} lineend")
+        currentLine = self.get(lineStart, lineEnd)
         
-        if hasattr(self.master, 'userGlobals'):
-            for var in self.master.userGlobals:
-                if var.startswith(partial_word) and not var.startswith('_'):
-                    suggestions.append(var)
+        # Calculate indentation
+        indent = self.calculateIndent(currentLine)
         
-        # Remove duplicates and sort
-        suggestions = sorted(list(set(suggestions)))
-        return suggestions[:10]  # Limit to 10 suggestions
-
-    def show_suggestions(self):
-        """Show code suggestions popup."""
-        # Get current word being typed
-        cursor_pos = self.index(tk.INSERT)
-        line_start = self.index(f"{cursor_pos} linestart")
-        current_line = self.get(line_start, cursor_pos)
+        # Insert newline with indent
+        self.insert("insert", "\n" + " " * indent)
+        self.see("end")
         
-        # Find the current word
-        words = current_line.split()
-        if not words:
-            return
-        
-        current_word = words[-1]
-        # Handle cases like "print(" where we want to suggest after the parenthesis
-        for char in "([{,.":
-            if char in current_word:
-                current_word = current_word.split(char)[-1]
-        
-        if len(current_word) < 2:  # Only show suggestions for 2+ characters
-            self.hide_suggestions()
-            return
-        
-        suggestions = self.get_suggestions(current_word)
-        if not suggestions:
-            self.hide_suggestions()
-            return
-        
-        self.suggestions = suggestions
-        self.selected_suggestion = 0
-        
-        # Create or update suggestion window
-        if not self.suggestion_window:
-            self.suggestion_window = tk.Toplevel(self)
-            self.suggestion_window.wm_overrideredirect(True)
-            self.suggestion_window.configure(bg="#2d2d2d")
-            
-            self.suggestion_listbox = tk.Listbox(
-                self.suggestion_window,
-                bg="#2d2d2d",
-                fg="white",
-                selectbackground="#0066cc",
-                font=("Consolas", 10),
-                height=min(len(suggestions), 8)
-            )
-            self.suggestion_listbox.pack()
-        
-        # Clear and populate listbox
-        self.suggestion_listbox.delete(0, tk.END)
-        for suggestion in suggestions:
-            self.suggestion_listbox.insert(tk.END, suggestion)
-        
-        self.suggestion_listbox.selection_set(0)
-        
-        # Position window near cursor
-        x, y, _, _ = self.bbox(cursor_pos)
-        x += self.winfo_rootx()
-        y += self.winfo_rooty() + 20
-        
-        self.suggestion_window.geometry(f"+{x}+{y}")
-        self.suggestion_window.deiconify()
-
-    def hide_suggestions(self):
-        """Hide suggestions popup."""
-        if self.suggestion_window:
-            self.suggestion_window.withdraw()
-
-    def apply_suggestion(self, suggestion=None):
-        """Apply selected suggestion at the cursor position (only missing letters)."""
-        if not suggestion and self.suggestions:
-            suggestion = self.suggestions[self.selected_suggestion]
-        if not suggestion:
-            return
-
-        # Current cursor position
-        cursor_pos = self.index(tk.INSERT)
-
-        # Get the word fragment before the cursor
-        line_start = self.index(f"{cursor_pos} linestart")
-        current_line = self.get(line_start, cursor_pos)
-
-        fragment = ""
-        for i in range(len(current_line)):
-            if current_line[-(i+1)] in " \t([{,.)":
-                break
-            fragment = current_line[-(i+1):]
-
-        # Only insert the missing part
-        if suggestion.startswith(fragment):
-            missing_part = suggestion[len(fragment):]
-            self.insert(cursor_pos, missing_part)
-            self.mark_set("insert", f"{cursor_pos} + {len(missing_part)}c")
-
-        self.hide_suggestions()
-
-
-    def on_tab(self, event):
+        return "break"
+    
+    def onTab(self, event):
         """Handle Tab key for autocompletion."""
-        if self.suggestion_window and self.suggestion_window.winfo_viewable():
-            self.apply_suggestion()
+        if self.isExecuting:
             return "break"
-        else:
-            self.show_suggestions()
-            return "break"
-
-    def is_incomplete_statement(self, code):
-        """Check if the code is an incomplete statement that needs more lines."""
-        code = code.split("\n")
-        if code[-1].strip() == "":
-            return(False)
-        if code[0].strip().endswith(":"):
-            return(True)
-        return(False)
-
-    def get_indent_level(self, line):
-        """Get the indentation level of a line."""
-        return len(line) - len(line.lstrip(' '))
-
-    def should_auto_indent(self, line):
-        """Check if we should add indentation after this line."""
-        stripped = line.strip()
-        return (stripped and stripped[-1] == ':')
-
-    def on_click(self, event):
-        self.hide_suggestions()
-        click_pos = self.index(f"@{event.x},{event.y}")
-
-        if self.current_prompt_start:
-            click_pos = self.index(tk.CURRENT)
-            if self.compare(click_pos, "<", self.current_prompt_start):
-                self.mark_set("insert", "end")
-                return "break"
-
-    def on_mouse_motion(self, event):
-        """Handle mouse motion for hover copying previous commands."""
-
-        mouse_pos = self.index(f"@{event.x},{event.y}")
-        line_start = self.index(f"{mouse_pos} linestart")
-        line_end = self.index(f"{mouse_pos} lineend")
-        line_text = self.get(line_start, line_end)
         
-        # Check if this line starts with ">>> " (a previous command)
-        if line_text.startswith(">>> ") and line_start != self.current_prompt_start:
-            command = line_text[4:]  # Remove ">>> "
-            if command.strip():
-                # Change cursor to indicate clickable
-                self.config(cursor="hand2")
-                self.hover_command = command.strip()
-            else:
-                self.config(cursor="xterm")
-                self.hover_command = None
+        if self.suggestionManager.suggestionWindow and \
+           self.suggestionManager.suggestionWindow.winfo_viewable():
+            self.suggestionManager.applySuggestion()
         else:
-            self.config(cursor="xterm")
-            self.hover_command = None
-
-    def on_key_press(self, event):
-        if self.suggestion_window and self.suggestion_window.winfo_viewable():
+            self.suggestionManager.showSuggestions()
+        
+        return "break"
+    
+    def onBackspace(self, event):
+        """Prevent backspace from deleting the prompt."""
+        if not self.isCursorInEditableArea():
+            return "break"
+        
+        # Check if we're at the prompt boundary
+        cursorPos = self.index("insert")
+        promptPos = self.getPromptPosition()
+        
+        if self.compare(cursorPos, "<=", promptPos):
+            return "break"
+    
+    def onClick(self, event):
+        """Handle mouse clicks - prevent clicking before prompt."""
+        self.suggestionManager.hideSuggestions()
+        
+        if self.isExecuting:
+            self.mark_set("insert", "end")
+            return "break"
+        
+        clickPos = self.index(f"@{event.x},{event.y}")
+        promptPos = self.getPromptPosition()
+        
+        if self.compare(clickPos, "<", promptPos):
+            self.mark_set("insert", "end")
+            return "break"
+    
+    def onKeyPress(self, event):
+        """Handle key press events."""
+        if self.suggestionManager.suggestionWindow and \
+           self.suggestionManager.suggestionWindow.winfo_viewable():
             if event.keysym == "Down":
-                self.selected_suggestion = min(self.selected_suggestion + 1, len(self.suggestions) - 1)
-                self.suggestion_listbox.selection_clear(0, tk.END)
-                self.suggestion_listbox.selection_set(self.selected_suggestion)
+                self.suggestionManager.handleNavigation("down")
                 return "break"
             elif event.keysym == "Up":
-                self.selected_suggestion = max(self.selected_suggestion - 1, 0)
-                self.suggestion_listbox.selection_clear(0, tk.END)
-                self.suggestion_listbox.selection_set(self.selected_suggestion)
+                self.suggestionManager.handleNavigation("up")
                 return "break"
             elif event.keysym == "Escape":
-                self.hide_suggestions()
-                return "break"
-            elif event.keysym in ["Return", "Tab"]:
-                self.apply_suggestion()
+                self.suggestionManager.hideSuggestions()
                 return "break"
 
-        # Ensure cursor is always at least 4 chars after current_prompt_start
-        prompt_end_index = f"{self.current_prompt_start} + 3c"
+        # Prevent editing outside command area
+        if not event.keysym in ["Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
+            if not self.isCursorInEditableArea():
+                self.mark_set("insert", "end")
+                return "break"
+    
+    def onKeyRelease(self, event):
+        """Handle key release events."""
+        if event.keysym in ["Return", "Escape", "Left", "Right", "Home", "End"]:
+            self.suggestionManager.hideSuggestions()
+        elif event.keysym not in ["Up", "Down", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
+            if not self.isExecuting:
+                self.after_idle(self.suggestionManager.showSuggestions)
+                self.after_idle(self.highlightCurrentCommand)
 
-        if event.keysym not in ["Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
-            if self.compare("insert", "<", prompt_end_index):
-                self.mark_set("insert", prompt_end_index)
+    def onUp(self, event):
+        if self.getCurrentCommand() == "":
+            if self.isExecuting:
+                return "break"
+            
+            # Save current command if starting navigation
+            if self.history.index == len(self.history.history):
+                self.history.setTemp(self.getCurrentCommand())
+            
+            prevCommand = self.history.navigateUp()
+            if prevCommand is not None:
+                self.replaceCurrentCommand(prevCommand)
+            
+            return "break"
+        # self.mark_set("insert", "insert -1 line")
 
-        # Block Backspace if at or before prompt
-        if event.keysym == "BackSpace" and self.compare("insert", "<=", prompt_end_index):
+    def onDown(self, event):
+        if self.getCurrentCommand() == "":
+            if self.isExecuting:
+                return "break"
+
+            nextCommand = self.history.navigateDown()
+            if nextCommand is not None:
+                self.replaceCurrentCommand(nextCommand)
+
             return "break"
 
-    def on_key_release(self, event):
-        # Hide suggestions on certain keys
-        if event.keysym in ["Return", "Escape", "Left", "Right", "Home", "End"]:
-            self.hide_suggestions()
-        # Show suggestions on typing
-        elif event.keysym not in ["Up", "Down", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
-            self.after_idle(self.show_suggestions)
+    def isIncompleteStatement(self, code):
+        """Check if the code is an incomplete statement."""
+        lines = code.split("\n")
+        if not lines[-1].strip():
+            return False
         
-        # Only highlight the current command line
-        if self.current_prompt_start:
-            self.highlight_current_line()
-
-    def on_shift_enter(self, event):
-        """Handle Shift+Enter for new line with auto-indent."""
-        self.hide_suggestions()
+        # Check for line ending with colon
+        for line in lines:
+            if line.strip().endswith(":"):
+                return True
         
-        if self.current_prompt_start:
-            # Get current line to determine indent
-            current_line_start = self.index("insert linestart")
-            current_line_end = self.index("insert lineend")
-            current_line = self.get(current_line_start, current_line_end)
-            
-            # Calculate indent level
-            base_indent = self.get_indent_level(current_line)
-            
-            # If the current line should increase indent, add 4 spaces
-            if self.should_auto_indent(current_line):
-                base_indent += 4
-            
-            # Insert newline with proper indentation
-            self.insert("insert", "\n" + " " * base_indent)
-            self.mark_set("insert", "end")
-        return "break"
-
-    def on_enter(self, event):
-        """Handle Enter key - execute if complete, newline if incomplete."""
-        self.hide_suggestions()
+        return False
+    
+    def calculateIndent(self, line):
+        """Calculate the indentation level for the next line."""
+        currentIndent = len(line) - len(line.lstrip())
         
-        if self.current_prompt_start:
-            # Get text from after the prompt to end
-            prompt_end = f"{self.current_prompt_start} + 3c"  # Skip ">>> "
-            command = self.get(prompt_end, "end-1c")
-            
-            if not command.strip():
-                return "break"
-            
-            # Check if it's an incomplete statement
-            if self.is_incomplete_statement(command):
-                # Add newline with auto-indent
-                current_line_start = self.index("insert linestart")
-                current_line_end = self.index("insert lineend")
-                current_line = self.get(current_line_start, current_line_end)
-                base_indent = self.get_indent_level(current_line)
-                
-                if self.should_auto_indent(current_line):
-                    base_indent += 4
-                
-                self.insert("insert", "\n" + " " * base_indent)
-                self.see("end")
-                return "break"
-            
-            # Execute the complete command
-            if command.strip():
-                self.command_history.append(command)
-                self.history_index = len(self.command_history)
-                
-                # Move to end and add newline for the executed command
-                self.mark_set("insert", "end")
-                self.insert("end", "\n")
-                self.see("end")
-
-                # Execute the command in a thread to prevent freezing
-                threading.Thread(target=self.execute_command_and_add_prompt, args=(command,), daemon=True).start()
-            # self.see("end")
-
-        return "break"
-
-    def highlight_current_line(self):
-        if not self.current_prompt_start:
+        # If line ends with colon, increase indent
+        if line.strip().endswith(":"):
+            return currentIndent + 4
+        
+        return currentIndent
+    
+    def highlightCurrentCommand(self):
+        """Apply syntax highlighting to the current command."""
+        if self.isExecuting:
             return
-            
-        # Clear existing syntax highlighting tags from current line
-        line_start = self.current_prompt_start
-        line_end = "end-1c"
         
-        # Remove all token tags from current line
-        for token, style in self.style:
-            self.tag_remove(str(token), line_start, line_end)
+        # Clear existing highlighting
+        start = self.getPromptPosition()
+        end = "end-1c"
         
-        # Get the command text (without the prompt)
-        command = self.get(line_start, line_end)
+        for token, _ in self.style:
+            self.tag_remove(str(token), start, end)
         
-        if not command.strip():
+        # Get and highlight the command
+        command = self.getCurrentCommand()
+        if not command:
             return
-            
-        # Highlight the command
-        self.mark_set("range_start", line_start)
+
+        self.mark_set("highlight_pos", start)
         
         for token, content in pygments.lex(command, self.lexer):
-            if content.strip():  # Only highlight non-whitespace
-                self.mark_set("range_end", f"range_start + {len(content)}c")
-                self.tag_add(str(token), "range_start", "range_end")
-            self.mark_set("range_start", f"range_start + {len(content)}c")
+            if content:
+                endPos = f"highlight_pos + {len(content)}c"
+                if content.strip():  # Only highlight non-whitespace
+                    self.tag_add(str(token), "highlight_pos", endPos)
+                self.mark_set("highlight_pos", endPos)
 
-    def write_output(self, text, tag="output"):
-        """Write output to the console - thread safe."""
+    def writeOutput(self, text, tag="output"):
+        """Write output to the console (thread-safe)."""
         def _write():
-            # Insert output at the end
             self.insert("end", text + "\n", tag)
             self.see("end")
         
-        # Use after() to ensure GUI updates happen on main thread
         self.after(0, _write)
-
-    def add_new_prompt(self):
-        """Add a new prompt - thread safe."""
-        def _add_prompt():
-            self.insert("end", ">>> ")
-            self.tag_add("prompt", "end-4c", "end")
-            self.current_prompt_start = self.index("end-4c")
+    
+    def addPrompt(self):
+        """Add a new command prompt."""
+        def _add():
+            # Store the line number for the new command
+            self.currentCommandLine = self.getCurrentLineNumber()
+            
+            # Insert prompt
+            self.insert("end", self.PROMPT)
+            promptStart = f"{self.currentCommandLine}.0"
+            promptEnd = f"{self.currentCommandLine}.{self.PROMPT_LENGTH}"
+            self.tag_add("prompt", promptStart, promptEnd)
+            
             self.mark_set("insert", "end")
             self.see("end")
+            self.isExecuting = False
         
-        self.after(0, _add_prompt)
-
-    def execute_command_and_add_prompt(self, command):
-        """Execute a command and then add a new prompt."""
+        if self.isExecuting:
+            self.after(0, _add)
+        else:
+            _add()
+    
+    def executeCommandThreaded(self, command):
+        """Execute a command in a separate thread."""
         try:
             # Try eval first for expressions
             result = eval(command, self.master.userGlobals, self.master.userLocals)
             if result is not None:
-                self.write_output(str(result), "result")
+                self.writeOutput(str(result), "result")
                 self.master.userLocals["_"] = result
         except SyntaxError:
             try:
-                # If eval fails, try exec for statements
+                # Try exec for statements
                 exec(command, self.master.userGlobals, self.master.userLocals)
             except Exception:
-                self.write_output(traceback.format_exc(), "error")
+                self.writeOutput(traceback.format_exc(), "error")
         except Exception:
-            self.write_output(traceback.format_exc(), "error")
+            self.writeOutput(traceback.format_exc(), "error")
         
-        # Add new prompt after execution is complete
-        self.add_new_prompt()
+        # Add new prompt after execution
+        self.addPrompt()
 
 
 class InteractiveConsole(ctk.CTk):
+    """Main console window application."""
+    
     def __init__(self, userGlobals=None, userLocals=None):
         super().__init__()
+        
+        # Window setup
         self.title("Live Interactive Console")
         self.geometry("900x600")
-
+        
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-
-        # If no globals/locals provided, get them from caller frame
+        
+        # Get namespace from caller if not provided
         if userGlobals is None or userLocals is None:
-            caller_frame = inspect.currentframe().f_back
+            callerFrame = inspect.currentframe().f_back
             if userGlobals is None:
-                userGlobals = caller_frame.f_globals
+                userGlobals = callerFrame.f_globals
             if userLocals is None:
-                userLocals = caller_frame.f_locals
-
-        # Create frame for the text widget
+                userLocals = callerFrame.f_locals
+        
+        self.userGlobals = userGlobals
+        self.userLocals = userLocals
+        
+        # Create UI
+        self._createUi()
+        
+        # Redirect stdout/stderr
+        self._setupOutputRedirect()
+    
+    def _createUi(self):
+        """Create the user interface."""
+        # Main frame
         frame = ctk.CTkFrame(self)
         frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-        # Single console text widget
+        
+        # Console text widget
         self.console = InteractiveConsoleText(
-            frame, 
-            wrap="word", 
-            bg="#1e1e1e", 
-            fg="white", 
+            frame,
+            wrap="word",
+            bg="#1e1e1e",
+            fg="white",
             insertbackground="white",
             font=("Consolas", 12)
         )
         self.console.pack(fill="both", expand=True, padx=5, pady=5)
-
-        # Namespace
-        self.userGlobals = userGlobals
-        self.userLocals = userLocals
-
-        # Redirect stdout/stderr to write to console
-        sys.stdout = StdoutRedirect(self.console.write_output)
-        sys.stderr = StdoutRedirect(lambda text, tag: self.console.write_output(text, "error"))
-
-        # Give console access to namespaces
+        
+        # Give console access to namespace
         self.console.master = self
     
+    def _setupOutputRedirect(self):
+        """Setup stdout/stderr redirection to console."""
+        sys.stdout = StdoutRedirect(self.console.writeOutput)
+        sys.stderr = StdoutRedirect(
+            lambda text, tag: self.console.writeOutput(text, "error")
+        )
+    
     def probe(self, *args, **kwargs):
+        """Start the console main loop."""
         self.mainloop(*args, **kwargs)
+
 
 # Example usage
 if __name__ == "__main__":
+    # Example variables and functions for testing
     foo = 42
-
+    
     def greet(name):
         print(f"Hello {name}!")
         return f"Greeted {name}"
-
+    
+    # Create the list for testing autocomplete
+    exampleList = [1, 2, 3, 4, 5]
+    
+    # Start the console
     InteractiveConsole().probe()
