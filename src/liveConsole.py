@@ -604,7 +604,7 @@ class InteractiveConsole(ctk.CTk):
         self._createUi()
         
         # Redirect stdout/stderr
-        # self._setupOutputRedirect()
+        self._setupOutputRedirect()
     
     def _createUi(self):
         """Create the user interface."""
