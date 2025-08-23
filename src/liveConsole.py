@@ -30,7 +30,9 @@ class StdoutRedirect(io.StringIO):
 class CodeSuggestionManager:
     """Manages code suggestions and autocomplete functionality."""
     
-    def __init__(self, textWidget):
+    def __init__(self, textWidget, userLocals, userGlobals):
+        self.userLocals = userLocals
+        self.userGlobals = userGlobals
         self.textWidget = textWidget
         self.suggestionWindow = None
         self.suggestionListbox = None
@@ -42,60 +44,72 @@ class CodeSuggestionManager:
         self.builtins = [name for name in dir(builtins) if not name.startswith('_')]
     
     def getCurrentWord(self):
-        """Extract the word being typed at cursor position."""
+        """Extract the word being typed at cursor position and suggest dir() if applicable."""
+        suggestions = []
         cursorPos = self.textWidget.index(tk.INSERT)
         lineStart = self.textWidget.index(f"{cursorPos} linestart")
         currentLine = self.textWidget.get(lineStart, cursorPos)
-        
+
         # Find the current word
         words = currentLine.split()
         if not words:
-            return ""
-        
+            return "", suggestions
+
         currentWord = words[-1]
-        # Handle cases like "print(" where we want to suggest after special chars
+
+
+        # If the word contains a dot, try to evaluate the base and get its dir()
+        if '.' in currentWord:
+            try:
+                base_expr = '.'.join(currentWord.split('.')[:-1])
+                obj = eval(base_expr, self.userLocals, self.userGlobals)
+                suggestions = dir(obj)
+            except Exception as e:
+                print(e)
         for char in "([{,.":
             if char in currentWord:
                 currentWord = currentWord.split(char)[-1]
-        
-        return currentWord
+
+        return currentWord, suggestions
     
-    def getSuggestions(self, partialWord):
+    def getSuggestions(self, partialWord, suggestions=[]):
         """Get code suggestions for partial word."""
         if len(partialWord) < 2:
-            return []
+            return suggestions
+        
+        # print(partialWord)
+        if suggestions != []:
+            suggestions = [suggestion for suggestion in suggestions if suggestion.lower().startswith(partialWord.lower())]
+        else:
+            # Add matching keywords
+            for kw in self.keywords:
+                if kw.startswith(partialWord.lower()):
+                    suggestions.append(kw)
             
-        suggestions = []
-        
-        # Add matching keywords
-        for kw in self.keywords:
-            if kw.startswith(partialWord.lower()):
-                suggestions.append(kw)
-        
-        # Add matching builtins
-        for builtin in self.builtins:
-            if builtin.startswith(partialWord):
-                suggestions.append(builtin)
-        
-        # Add matching variables from namespace
-        master = self.textWidget.master
-        if hasattr(master, 'userLocals'):
-            for var in master.userLocals:
-                if var.startswith(partialWord) and not var.startswith('_'):
-                    suggestions.append(var)
-        
-        if hasattr(master, 'userGlobals'):
-            for var in master.userGlobals:
-                if var.startswith(partialWord) and not var.startswith('_'):
-                    suggestions.append(var)
+            # Add matching builtins
+            for builtin in self.builtins:
+                if builtin.startswith(partialWord):
+                    suggestions.append(builtin)
+            
+            # Add matching variables from namespace
+            master = self.textWidget.master
+            if hasattr(master, 'userLocals'):
+                for var in master.userLocals:
+                    if var.startswith(partialWord) and not var.startswith('_'):
+                        suggestions.append(var)
+            
+            if hasattr(master, 'userGlobals'):
+                for var in master.userGlobals:
+                    if var.startswith(partialWord) and not var.startswith('_'):
+                        suggestions.append(var)
         
         # Remove duplicates and sort
-        return sorted(list(set(suggestions)))[:10]
+        return sorted(list(set(suggestions)))
     
     def showSuggestions(self):
         """Display the suggestions popup."""
-        currentWord = self.getCurrentWord()
-        suggestions = self.getSuggestions(currentWord)
+        currentWord, extraSuggestions = self.getCurrentWord()
+        suggestions = self.getSuggestions(currentWord, extraSuggestions)
         
         if not suggestions:
             self.hideSuggestions()
@@ -155,12 +169,11 @@ class CodeSuggestionManager:
         if not suggestion:
             return
         
-        currentWord = self.getCurrentWord()
-        if suggestion.startswith(currentWord):
-            # Only insert the missing part
-            missingPart = suggestion[len(currentWord):]
-            cursorPos = self.textWidget.index(tk.INSERT)
-            self.textWidget.insert(cursorPos, missingPart)
+        currentWord, _ = self.getCurrentWord()
+        # Only insert the missing part
+        missingPart = suggestion[len(currentWord):]
+        cursorPos = self.textWidget.index(tk.INSERT)
+        self.textWidget.insert(cursorPos, missingPart)
         
         self.hideSuggestions()
     
@@ -220,11 +233,11 @@ class InteractiveConsoleText(tk.Text):
     PROMPT = ">>> "
     PROMPT_LENGTH = 4
     
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, userLocals=None, userGlobals=None, **kwargs):
         super().__init__(master, **kwargs)
         
         # Initialize components
-        self.suggestionManager = CodeSuggestionManager(self)
+        self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals)
         
         self.navigatingHistory = False
         self.history = CommandHistory()
@@ -591,7 +604,7 @@ class InteractiveConsole(ctk.CTk):
         self._createUi()
         
         # Redirect stdout/stderr
-        self._setupOutputRedirect()
+        # self._setupOutputRedirect()
     
     def _createUi(self):
         """Create the user interface."""
@@ -602,6 +615,8 @@ class InteractiveConsole(ctk.CTk):
         # Console text widget
         self.console = InteractiveConsoleText(
             frame,
+            userGlobals=self.userGlobals,
+            userLocals=self.userLocals,
             wrap="word",
             bg="#1e1e1e",
             fg="white",
