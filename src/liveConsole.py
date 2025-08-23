@@ -302,7 +302,8 @@ class InteractiveConsoleText(tk.Text):
         
         self.delete(start, end)
         self.insert(start, newCommand)
-
+        self.see("end")
+    
     def isCursorInEditableArea(self):
         """Check if cursor is in the editable command area."""
         if self.isExecuting:
@@ -317,25 +318,25 @@ class InteractiveConsoleText(tk.Text):
     def onEnter(self, event):
         """Handle Enter key - execute command."""
         self.suggestionManager.hideSuggestions()
-
+        
         if self.isExecuting:
             return "break"
-
+        
         command = self.getCurrentCommand()
-
+        
         if not command.strip():
             return "break"
-
+        
         # Check if statement is incomplete
         if self.isIncompleteStatement(command):
             return self.onShiftEnter(event)
-
+        
         # Execute the command
         self.history.add(command)
         self.mark_set("insert", "end")
         self.insert("end", "\n")
         self.see("end")
-
+        
         # Execute in thread
         self.isExecuting = True
         threading.Thread(
@@ -396,29 +397,14 @@ class InteractiveConsoleText(tk.Text):
     def onClick(self, event):
         """Handle mouse clicks - prevent clicking before prompt."""
         self.suggestionManager.hideSuggestions()
-        
-        if self.isExecuting:
-            self.mark_set("insert", "end")
-            return "break"
-        
-        clickPos = self.index(f"@{event.x},{event.y}")
-        promptPos = self.getPromptPosition()
-        
-        if self.compare(clickPos, "<", promptPos):
-            self.mark_set("insert", "end")
-            return "break"
-    
+        return None
+
     def onKeyPress(self, event):
         """Handle key press events."""
+        # print(event.keysym)
         if self.suggestionManager.suggestionWindow and \
            self.suggestionManager.suggestionWindow.winfo_viewable():
-            if event.keysym == "Down":
-                self.suggestionManager.handleNavigation("down")
-                return "break"
-            elif event.keysym == "Up":
-                self.suggestionManager.handleNavigation("up")
-                return "break"
-            elif event.keysym == "Escape":
+            if event.keysym == "Escape":
                 self.suggestionManager.hideSuggestions()
                 return "break"
 
@@ -456,11 +442,21 @@ class InteractiveConsoleText(tk.Text):
             return("break")
 
     def onUp(self, event):
+        if self.suggestionManager.suggestionWindow and \
+           self.suggestionManager.suggestionWindow.winfo_viewable():
+            if event.keysym == "Up":
+                self.suggestionManager.handleNavigation("up")
+                return "break"
         command = self.history.navigateUp()
         return(self.historyReplace(command))
         # self.mark_set("insert", "insert -1 line")
 
     def onDown(self, event):
+        if self.suggestionManager.suggestionWindow and \
+           self.suggestionManager.suggestionWindow.winfo_viewable():
+            if event.keysym == "Down":
+                self.suggestionManager.handleNavigation("down")
+                return "break"
         command = self.history.navigateDown()
         return(self.historyReplace(command))
 
