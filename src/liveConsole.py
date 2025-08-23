@@ -320,6 +320,7 @@ class InteractiveConsoleText(tk.Text):
             
             # Insert newline with proper indentation
             self.insert("insert", "\n" + " " * base_indent)
+            self.mark_set("insert", "end")
         return "break"
 
     def on_enter(self, event):
@@ -346,6 +347,7 @@ class InteractiveConsoleText(tk.Text):
                     base_indent += 4
                 
                 self.insert("insert", "\n" + " " * base_indent)
+                self.see("end")
                 return "break"
             
             # Execute the complete command
@@ -356,10 +358,12 @@ class InteractiveConsoleText(tk.Text):
                 # Move to end and add newline for the executed command
                 self.mark_set("insert", "end")
                 self.insert("end", "\n")
-                
+                self.see("end")
+
                 # Execute the command in a thread to prevent freezing
                 threading.Thread(target=self.execute_command_and_add_prompt, args=(command,), daemon=True).start()
-                
+            # self.see("end")
+
         return "break"
 
     def highlight_current_line(self):
