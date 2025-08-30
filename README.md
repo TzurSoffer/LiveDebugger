@@ -18,7 +18,7 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 
 ## Installation
 
-`pip install pip install liveConsole`
+`pip install liveConsole`
 
 
 ## Features
