@@ -233,11 +233,12 @@ class InteractiveConsoleText(tk.Text):
     PROMPT = ">>> "
     PROMPT_LENGTH = 4
     
-    def __init__(self, master, userLocals=None, userGlobals=None, **kwargs):
+    def __init__(self, master, helpTab, userLocals=None, userGlobals=None, **kwargs):
         super().__init__(master, **kwargs)
         
         # Initialize components
         self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals)
+        self.helpTab = helpTab
         
         self.navigatingHistory = False
         self.history = CommandHistory()
@@ -406,11 +407,37 @@ class InteractiveConsoleText(tk.Text):
         
         if self.compare(cursorPos, "<=", promptPos):
             return "break"
-    
+
     def onClick(self, event):
-        """Handle mouse clicks - prevent clicking before prompt."""
+        """Handle mouse clicks - Ctrl+Click opens help for the clicked word."""
         self.suggestionManager.hideSuggestions()
-        return None
+
+        if event.state & 0x4:  #< Ctrl pressed
+            clickIndex = self.index(f"@{event.x},{event.y}")  # mouse index
+
+            # Get the full line
+            i = int(clickIndex.split('.')[1])
+            lineNum = clickIndex.split('.')[0]
+            lineStart = f"{lineNum}.0"
+            lineEnd = f"{lineNum}.end"
+            lineText = self.get(lineStart, lineEnd)
+            
+            wordEndIndex = self.index(f"{clickIndex} wordend")
+            # obj = self.get(f"{clickIndex} wordstart", f"{clickIndex} wordend").strip() #< Get the word at that index
+            obj = ""
+            for i in range (i-1,2, -1):
+                letter = lineText[i]
+                if not (letter.isalnum() or letter == "_" or letter == "."):
+                    obj = lineText[i+1: int(wordEndIndex.split('.')[1])]
+            
+            
+            if obj:
+                self.helpTab.open()
+                self.helpTab.updateHelp(obj)
+            
+            return "break"  #< Prevent default cursor behavior
+
+        return None   #< Normal click behavior
 
     def onKeyPress(self, event):
         """Handle key press events."""
@@ -576,6 +603,61 @@ class InteractiveConsoleText(tk.Text):
         self.addPrompt()
 
 
+class HelpTab(ctk.CTkFrame):
+    """A right-hand help tab with closable and updateable text content."""
+    
+    def __init__(self, parent, width=300, title="Help", **kwargs):
+        super().__init__(parent, width=width, **kwargs)
+        self.parent = parent
+        self.visible = False
+
+        # Header frame with title and close button
+        headerFrame = ctk.CTkFrame(self, height=30)
+        headerFrame.pack(fill="x")
+
+        self.titleLabel = ctk.CTkLabel(headerFrame, text=title, font=("Consolas", 12, "bold"))
+        self.titleLabel.pack(side="left", padx=5)
+
+        self.closeButton = ctk.CTkButton(
+            headerFrame, text="X", width=20, height=20, command=self.close
+        )
+        self.closeButton.pack(side="right", padx=5)
+
+        # Scrollable text area
+        self.textBox = ctk.CTkTextbox(self, wrap="word", font=("Consolas", 11))
+        self.textBox.pack(fill="both", expand=True, padx=5, pady=5)
+        self.textBox.configure(state="disabled")  #< read-only
+
+    def close(self):
+        """Hide the help tab."""
+        if self.visible:
+            self.pack_forget()
+            self.visible = False
+
+    def open(self):
+        """Show the help tab."""
+        if not self.visible:
+            self.pack(side="left", fill="y")
+            self.visible = True
+            
+    def _getHelp(self, obj):
+        """Return the output of help(obj) as a string."""
+        old_stdout = sys.stdout  # save current stdout
+        sys.stdout = buffer = io.StringIO()  # redirect stdout to a string buffer
+        try:
+            help(obj)
+            return buffer.getvalue()
+        finally:
+            sys.stdout = old_stdout  # restore original stdout
+
+    def updateHelp(self, obj):
+        """Update the help tab content."""
+
+        self.textBox.configure(state="normal")
+        self.textBox.delete("1.0", "end")
+        self.textBox.insert("1.0", self._getHelp(obj))
+        self.textBox.configure(state="disabled")
+
 class InteractiveConsole(ctk.CTk):
     """Main console window application."""
     
@@ -607,14 +689,24 @@ class InteractiveConsole(ctk.CTk):
         self._setupOutputRedirect()
     
     def _createUi(self):
-        """Create the user interface."""
-        # Main frame
+        """Create UI with console and help tab."""
         frame = ctk.CTkFrame(self)
         frame.pack(padx=10, pady=10, fill="both", expand=True)
-        
-        # Console text widget
+
+        # Horizontal frame
+        self.horizFrame = ctk.CTkFrame(frame)
+        self.horizFrame.pack(fill="both", expand=True)
+
+        # Right: Help Tab
+        self.helpTab = HelpTab(self.horizFrame)
+
+        # Left: Console
+        self.consoleFrame = ctk.CTkFrame(self.horizFrame)
+        self.consoleFrame.pack(side="left", fill="both", expand=True)
+
         self.console = InteractiveConsoleText(
-            frame,
+            self.consoleFrame,
+            self.helpTab,
             userGlobals=self.userGlobals,
             userLocals=self.userLocals,
             wrap="word",
@@ -624,9 +716,8 @@ class InteractiveConsole(ctk.CTk):
             font=("Consolas", 12)
         )
         self.console.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Give console access to namespace
         self.console.master = self
+
     
     def _setupOutputRedirect(self):
         """Setup stdout/stderr redirection to console."""
