@@ -16,6 +16,9 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
     
 *   Clickable history of previous commands
 
+* **Integrated Help Panel** for quick access to Python object documentation
+
+
 ## Installation
 
 `pip install liveConsole`
@@ -63,6 +66,17 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
     
 *   Click to copy them back to the prompt for editing or re-execution.
     
+
+### Help Panel
+
+*   A resizable right-hand panel that displays Python documentation (help()) for any object.
+
+*   Opens when clicking ctrl+click on a function/method and can be closed with the "X" button.
+
+*   Scrollable and syntax-styled.
+
+*   Perfect for quick reference without leaving the console.
+
 
 ### Easy Integration
 
