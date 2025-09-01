@@ -76,8 +76,7 @@ class CodeSuggestionManager:
         """Get code suggestions for partial word."""
         if len(partialWord) < 2:
             return suggestions
-        
-        # print(partialWord)
+
         if suggestions != []:
             suggestions = [suggestion for suggestion in suggestions if suggestion.lower().startswith(partialWord.lower())]
         else:
@@ -227,37 +226,17 @@ class CommandHistory:
         self.tempCommand = command
 
 
-class InteractiveConsoleText(tk.Text):
-    """A tk.Text widget with Python syntax highlighting for interactive console."""
-    
-    PROMPT = ">>> "
-    PROMPT_LENGTH = 4
-    
-    def __init__(self, master, helpTab, userLocals=None, userGlobals=None, **kwargs):
+class StyledTextWindow(tk.Text):
+    def __init__(self, master,  **kwargs):
         super().__init__(master, **kwargs)
-        
-        # Initialize components
-        self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals)
-        self.helpTab = helpTab
-        
-        self.navigatingHistory = False
-        self.history = CommandHistory()
-        
+       
         # Syntax highlighting setup
         self.lexer = PythonLexer()
         self.style = get_style_by_name("monokai")
         
-        # Track current command
-        self.currentCommandLine = 1
-        self.isExecuting = False
-        
-        # Setup tags and bindings
+        # Setup tags
         self._setupTags()
-        self._setupBindings()
-        
-        # Initialize with first prompt
-        self.addPrompt()
-    
+
     def _setupTags(self):
         """Configure text tags for different output types."""
         self.tag_configure("prompt", foreground="#00ff00", font=("Consolas", 12, "bold"))
@@ -271,7 +250,55 @@ class InteractiveConsoleText(tk.Text):
                 fg = f"#{style['color']}"
                 font = ("Consolas", 12, "bold" if style["bold"] else "normal")
                 self.tag_configure(str(token), foreground=fg, font=font)
+
+
+    def updateStyling(self, start="1.0"):
+        """Apply syntax highlighting to the current command."""
+        end = "end-1c"
+        
+        for token, _ in self.style:
+            self.tag_remove(str(token), start, end)
+        
+        # Get and highlight the command
+        command = self.get(start, "end-1c")
+        if not command:
+            return(-1)
+
+        self.mark_set("highlight_pos", start)
+        
+        for token, content in pygments.lex(command, self.lexer):
+            if content:
+                endPos = f"highlight_pos + {len(content)}c"
+                if content.strip():  # Only highlight non-whitespace
+                    self.tag_add(str(token), "highlight_pos", endPos)
+                self.mark_set("highlight_pos", endPos)
+
+class InteractiveConsoleText(StyledTextWindow):
+    """TBD"""
     
+    PROMPT = ">>> "
+    PROMPT_LENGTH = 4
+    
+    def __init__(self, master, helpTab, userLocals=None, userGlobals=None, **kwargs):
+        super().__init__(master, **kwargs)
+        
+        # Initialize components
+        self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals)
+        self.helpTab = helpTab
+        
+        self.navigatingHistory = False
+        self.history = CommandHistory()
+
+        # Track current command
+        self.currentCommandLine = 1
+        self.isExecuting = False
+        
+        # Setup bindings
+        self._setupBindings()
+        
+        # Initialize with first prompt
+        self.addPrompt()
+
     def _setupBindings(self):
         """Setup all key and mouse bindings."""
         self.bind("<Return>", self.onEnter)
@@ -289,22 +316,9 @@ class InteractiveConsoleText(tk.Text):
         """Get the line number where current command starts."""
         return int(self.index("end-1c").split(".")[0])
     
-    def getPromptPosition(self):
-        """Get the position right after the prompt on current command line."""
-        return f"{self.currentCommandLine}.{self.PROMPT_LENGTH}"
-    
     def getCommandStartPosition(self):
         """Get the starting position of the current command."""
         return f"{self.currentCommandLine}.0"
-    
-    def getCurrentCommand(self):
-        """Extract the current command text (without prompt)."""
-        if self.isExecuting:
-            return ""
-        
-        start = self.getPromptPosition()
-        end = "end-1c"
-        return self.get(start, end)
     
     def replaceCurrentCommand(self, newCommand):
         """Replace the current command with new text."""
@@ -427,13 +441,14 @@ class InteractiveConsoleText(tk.Text):
             obj = ""
             for i in range (i-1,2, -1):
                 letter = lineText[i]
-                if not (letter.isalnum() or letter == "_" or letter == "."):
+                if (not (letter.isalnum() or letter == "_" or letter == ".")): #<  or (letter in " \n\t\r")
                     obj = lineText[i+1: int(wordEndIndex.split('.')[1])]
+                    break
             
             
             if obj:
-                self.helpTab.open()
                 self.helpTab.updateHelp(obj)
+                self.helpTab.open()
             
             return "break"  #< Prevent default cursor behavior
 
@@ -466,7 +481,8 @@ class InteractiveConsoleText(tk.Text):
         elif event.keysym not in ["Up", "Down", "Shift_L", "Shift_R", "Control_L", "Control_R"]:
             if not self.isExecuting:
                 self.after_idle(self.suggestionManager.showSuggestions)
-                self.after_idle(self.highlightCurrentCommand)
+                if not self.isExecuting:
+                    self.after_idle(lambda: self.updateStyling(start=self.getPromptPosition()))
 
     def cancel(self, event):
         self.history.add(self.getCurrentCommand())
@@ -526,32 +542,6 @@ class InteractiveConsoleText(tk.Text):
             return currentIndent + 4
         
         return currentIndent
-    
-    def highlightCurrentCommand(self):
-        """Apply syntax highlighting to the current command."""
-        if self.isExecuting:
-            return
-        
-        # Clear existing highlighting
-        start = self.getPromptPosition()
-        end = "end-1c"
-        
-        for token, _ in self.style:
-            self.tag_remove(str(token), start, end)
-        
-        # Get and highlight the command
-        command = self.getCurrentCommand()
-        if not command:
-            return
-
-        self.mark_set("highlight_pos", start)
-        
-        for token, content in pygments.lex(command, self.lexer):
-            if content:
-                endPos = f"highlight_pos + {len(content)}c"
-                if content.strip():  # Only highlight non-whitespace
-                    self.tag_add(str(token), "highlight_pos", endPos)
-                self.mark_set("highlight_pos", endPos)
 
     def writeOutput(self, text, tag="output"):
         """Write output to the console (thread-safe)."""
@@ -560,7 +550,17 @@ class InteractiveConsoleText(tk.Text):
             self.see("end")
         
         self.after(0, _write)
-    
+
+    def getPromptPosition(self):
+        """Get the position right after the prompt on current command line."""
+        return f"{self.currentCommandLine}.{self.PROMPT_LENGTH}"
+
+    def getCurrentCommand(self):
+        """Extract the current command text (without prompt)."""
+        start = self.getPromptPosition()
+        end = "end-1c"
+        return self.get(start, end)
+
     def addPrompt(self):
         """Add a new command prompt."""
         def _add():
@@ -605,28 +605,30 @@ class InteractiveConsoleText(tk.Text):
 
 class HelpTab(ctk.CTkFrame):
     """A right-hand help tab with closable and updateable text content."""
-    
-    def __init__(self, parent, width=300, title="Help", **kwargs):
+
+    def __init__(self, parent, width=500, title="Help", **kwargs):
         super().__init__(parent, width=width, **kwargs)
         self.parent = parent
         self.visible = False
 
+        # Ensure initial width is respected
+        self.pack_propagate(False)
+
         # Header frame with title and close button
         headerFrame = ctk.CTkFrame(self, height=30)
         headerFrame.pack(fill="x")
+        self.style = get_style_by_name("monokai")
 
         self.titleLabel = ctk.CTkLabel(headerFrame, text=title, font=("Consolas", 12, "bold"))
         self.titleLabel.pack(side="left", padx=5)
 
-        self.closeButton = ctk.CTkButton(
-            headerFrame, text="X", width=20, height=20, command=self.close
-        )
+        self.closeButton = ctk.CTkButton(headerFrame, text="X", height=20, command=self.close)
         self.closeButton.pack(side="right", padx=5)
 
         # Scrollable text area
-        self.textBox = ctk.CTkTextbox(self, wrap="word", font=("Consolas", 11))
+        self.textBox = StyledTextWindow(self, wrap="word", font=("Consolas", 11), bg="#2e2e2e")
         self.textBox.pack(fill="both", expand=True, padx=5, pady=5)
-        self.textBox.configure(state="disabled")  #< read-only
+        self.textBox.configure(state="disabled")  # read-only
 
     def close(self):
         """Hide the help tab."""
@@ -638,6 +640,7 @@ class HelpTab(ctk.CTkFrame):
         """Show the help tab."""
         if not self.visible:
             self.pack(side="left", fill="y")
+            # self.configure(width=self.minWidth)
             self.visible = True
             
     def _getHelp(self, obj):
@@ -656,6 +659,7 @@ class HelpTab(ctk.CTkFrame):
         self.textBox.configure(state="normal")
         self.textBox.delete("1.0", "end")
         self.textBox.insert("1.0", self._getHelp(obj))
+        self.textBox.updateStyling()
         self.textBox.configure(state="disabled")
 
 class InteractiveConsole(ctk.CTk):
@@ -698,11 +702,12 @@ class InteractiveConsole(ctk.CTk):
         self.horizFrame.pack(fill="both", expand=True)
 
         # Right: Help Tab
-        self.helpTab = HelpTab(self.horizFrame)
+        self.helpTab = HelpTab(self.horizFrame, width=500)
 
         # Left: Console
-        self.consoleFrame = ctk.CTkFrame(self.horizFrame)
+        self.consoleFrame = ctk.CTkFrame(self.horizFrame, width=600)
         self.consoleFrame.pack(side="left", fill="both", expand=True)
+        self.consoleFrame.pack_propagate(False)  # prevent shrinking to fit contents
 
         self.console = InteractiveConsoleText(
             self.consoleFrame,
