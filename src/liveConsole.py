@@ -64,8 +64,8 @@ class CodeSuggestionManager:
                 base_expr = '.'.join(currentWord.split('.')[:-1])
                 obj = eval(base_expr, self.userLocals, self.userGlobals)
                 suggestions = dir(obj)
-            except Exception as e:
-                print(e)
+            except:
+                pass
         for char in "([{,.":
             if char in currentWord:
                 currentWord = currentWord.split(char)[-1]
