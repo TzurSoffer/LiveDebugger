@@ -1,6 +1,7 @@
 # Live Interactive Python Console
 
 ## You can finally test your code in real time without using idle!
+### If you found [this repository](https://github.com/TzurSoffer/LiveDebugger) useful, please give it a ⭐!.
 
 A fully-featured, **live Python console GUI** built with **CustomTkinter** and **Tkinter**, featuring:
 
