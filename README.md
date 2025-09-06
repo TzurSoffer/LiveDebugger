@@ -15,7 +15,7 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
     
 *   Multi-line input with auto-indentation
     
-*   Clickable history of previous commands
+*   History of previous commands
 
 * **Integrated Help Panel** for quick access to Python object documentation
 
