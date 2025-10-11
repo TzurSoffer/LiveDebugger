@@ -27,6 +27,12 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 
 ## Features
 
+### Standalone Launch
+
+* Once installed, you can launch the console directly by simply typing  ```pysole``` or ```liveconsole``` in the terminal
+
+* This opens the full GUI without needing to write any code. Perfect for quick debugging and experimenting.
+
 ### Syntax Highlighting
 
 *   Real-time syntax highlighting using **Pygments** and the **Monokai** style.
