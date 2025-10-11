@@ -1,4 +1,4 @@
-from liveConsole import InteractiveConsole
+import pysole
 
 foo = "bar"
 
@@ -10,5 +10,4 @@ def add(a, b):
 
 if __name__ == "__main__":
     # Launch the live console for interactive testing
-    console = InteractiveConsole()
-    console.probe()
+    pysole.probe()

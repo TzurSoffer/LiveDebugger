@@ -1,4 +1,4 @@
-# Live Interactive Python Console
+# PYSOLE
 
 ## You can finally test your code in real time without using idle!
 ### If you found [this repository](https://github.com/TzurSoffer/LiveDebugger) useful, please give it a ⭐!.
@@ -88,8 +88,8 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 ## Usage
 
 ```
-from liveConsole import InteractiveConsole
-InteractiveConsole().probe()
+import pysole
+pysole.probe()
 ```
 
 *   Type Python commands in the `>>>` prompt and see live output.
