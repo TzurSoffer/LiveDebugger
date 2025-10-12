@@ -86,6 +86,7 @@ class InteractiveConsole(ctk.CTk):
         
         self.runRemainingCode = runRemainingCode
         self.printStartupCode = printStartupCode
+        self.leadingWhitespaceLen = 0
         self.removeWaterMark = removeWaterMark
         self.startupCode = ()
         if runRemainingCode:
@@ -96,8 +97,10 @@ class InteractiveConsole(ctk.CTk):
             with open(filename, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
-            startLine = callerFrame.f_lineno
-            self.startupCode = lines[startLine:]
+            startLineIndex = callerFrame.f_lineno
+            startLine = lines[startLineIndex - 1]
+            self.leadingWhitespaceLen = len(startLine) - len(startLine.lstrip())
+            self.startupCode = lines[startLineIndex:]
 
     def _createMenu(self):
         """Create a menu bar using CTkOptionMenu."""
@@ -281,14 +284,12 @@ class InteractiveConsole(ctk.CTk):
                 self.console.newline()
 
             for line in self.startupCode:
-                line = line.rstrip()
+                line = line.rstrip()[self.leadingWhitespaceLen:]
                 while self.console.isExecuting:
                     time.sleep(0.01)
                 if self.printStartupCode:
-                    # self.console.writeOutput(line)
                     self.console.runCommand(line, printCommand=True)
                 else:
-                    # self.console.writeOutput(line)
                     self.console.runCommand(line, printCommand=False)
 
             if self.runRemainingCode == True and self.printStartupCode == False:
