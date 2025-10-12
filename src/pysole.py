@@ -34,7 +34,7 @@ class StdinRedirect(io.StringIO):
 class InteractiveConsole(ctk.CTk):
     """Main console window application."""
     
-    def __init__(self, userGlobals=None, userLocals=None):
+    def __init__(self, userGlobals=None, userLocals=None, callerFrame=None):
         super().__init__()
         
         # Window setup
@@ -46,11 +46,12 @@ class InteractiveConsole(ctk.CTk):
         
         # Get namespace from caller if not provided
         if userGlobals is None or userLocals is None:
-            callerFrame = inspect.currentframe().f_back
+            if callerFrame == None:
+                callerFrame = inspect.currentframe().f_back
             if userGlobals is None:
-                userGlobals = callerFrame.f_globals
+                userGlobals = callerFrame.f_globals.copy()
             if userLocals is None:
-                userLocals = callerFrame.f_locals
+                userLocals = callerFrame.f_locals.copy()
         
         self.userGlobals = userGlobals
         self.userLocals = userLocals
@@ -109,24 +110,17 @@ class InteractiveConsole(ctk.CTk):
         """Start the console main loop."""
         self.mainloop(*args, **kwargs)
 
-def probe():
-    InteractiveConsole().probe()
+def probe(userGlobals=None, userLocals=None, callerFrame=None):
+    if callerFrame == None:
+        callerFrame = inspect.currentframe().f_back
+    InteractiveConsole(userGlobals=userGlobals,
+                              userLocals=userLocals,
+                              callerFrame=callerFrame).probe()
 
-def main():
-    from pysole import probe
-    probe()
+def _standalone():
+    import pysole
+    pysole.probe(callerFrame=inspect.currentframe().f_back)
 
 # Example usage
 if __name__ == "__main__":
-    # Example variables and functions for testing
-    foo = 42
-    
-    def greet(name):
-        print(f"Hello {name}!")
-        return(f"Greeted {name}")
-    
-    # Create the list for testing autocomplete
-    exampleList = [1, 2, 3, 4, 5]
-    
-    # Start the console
-    probe()
+    _standalone()

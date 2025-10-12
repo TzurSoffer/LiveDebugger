@@ -1,1 +1,0 @@
-from pysole import probe, InteractiveConsole
