@@ -39,8 +39,9 @@ class InteractiveConsole(ctk.CTk):
     """Main console window application."""
 
     def __init__(self, userGlobals=None, userLocals=None, callerFrame=None,
-                 defaultSize=None, primaryPrompt=None,
-                 runRemainingCode=False, printStartupCode=True):
+                 defaultSize=None, primaryPrompt=None, font=None, fontSize=None,
+                 runRemainingCode=False, printStartupCode=False,
+                 removeWaterMark=False):
         super().__init__()
         with open(settingsPath, "r") as f:
             settings = json.load(f)
@@ -52,6 +53,10 @@ class InteractiveConsole(ctk.CTk):
             self.BEHAVIOR["PRIMARY_PROMPT"] = primaryPrompt
         if defaultSize != None:
             self.BEHAVIOR["DEFAULT_SIZE"] = defaultSize
+        if font != None:
+            self.FONT["FONT"] = font
+        if fontSize != None:
+            self.FONT["FONT_SIZE"] = fontSize
 
         self.title("Live Interactive Console")
         self.geometry(self.BEHAVIOR["DEFAULT_SIZE"])
@@ -79,7 +84,9 @@ class InteractiveConsole(ctk.CTk):
         self._setupOutputRedirect()
         self._setupInputRedirect()
         
+        self.runRemainingCode = runRemainingCode
         self.printStartupCode = printStartupCode
+        self.removeWaterMark = removeWaterMark
         self.startupCode = ()
         if runRemainingCode:
             code_obj = callerFrame.f_code
@@ -254,24 +261,43 @@ class InteractiveConsole(ctk.CTk):
     def probe(self, *args, **kwargs):
         """Start the console main loop."""
         def runStartup():
-            self.console.newline()
-            self.console.writeOutput("Welcome to Pysole, if you find me useful, please star me on github:\nhttps://github.com/TzurSoffer/Pysole", "instruction")
+            if not self.removeWaterMark:
+                m = (
+                    "Welcome to Pysole, if you find me useful, please star me on GitHub:\n"
+                    "https://github.com/TzurSoffer/Pysole"
+                )
+                stdPrint(m)
+                self.console.newline()
+                self.console.writeOutput(m, "instruction")
+                if self.runRemainingCode:
+                    if self.printStartupCode:
+                        self.console.addPrompt()
+                    else:
+                        self.console.newline()
+                else:
+                    self.console.addPrompt()
+            elif self.runRemainingCode == True and self.printStartupCode == False:
+                self.console.newline()
+
             for line in self.startupCode:
                 line = line.rstrip()
                 while self.console.isExecuting:
                     time.sleep(0.01)
                 if self.printStartupCode:
+                    # self.console.writeOutput(line)
                     self.console.runCommand(line, printCommand=True)
                 else:
+                    # self.console.writeOutput(line)
                     self.console.runCommand(line, printCommand=False)
 
-            if self.printStartupCode == False:
+            if self.runRemainingCode == True and self.printStartupCode == False:
                 self.console.resetCurrentLineNumber()
                 self.console.addPrompt()
         threading.Thread(target=runStartup).start()
         self.mainloop(*args, **kwargs)
 
-def probe(userGlobals=None, userLocals=None, callerFrame=None, runRemainingCode=False, printStartupCode=False, **kwargs):
+def probe(userGlobals=None, userLocals=None, callerFrame=None,
+          runRemainingCode=False, printStartupCode=False, **kwargs):
     if callerFrame == None:
         callerFrame = inspect.currentframe().f_back
     InteractiveConsole(userGlobals=userGlobals,

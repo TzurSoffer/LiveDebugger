@@ -10,4 +10,6 @@ def add(a, b):
 
 if __name__ == "__main__":
     # Launch the live console for interactive testing
-    pysole.probe()
+    pysole.probe(runRemainingCode=True, printStartupCode=False)
+    x = 2
+    print(x)
