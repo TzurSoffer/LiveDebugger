@@ -49,9 +49,9 @@ class InteractiveConsole(ctk.CTk):
             if callerFrame == None:
                 callerFrame = inspect.currentframe().f_back
             if userGlobals is None:
-                userGlobals = callerFrame.f_globals.copy()
+                userGlobals = callerFrame.f_globals
             if userLocals is None:
-                userLocals = callerFrame.f_locals.copy()
+                userLocals = callerFrame.f_locals
         
         self.userGlobals = userGlobals
         self.userLocals = userLocals
