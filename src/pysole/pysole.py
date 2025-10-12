@@ -269,6 +269,7 @@ class InteractiveConsole(ctk.CTk):
                 stdPrint(m)
                 self.console.newline()
                 self.console.writeOutput(m, "instruction")
+                time.sleep(0.1)
                 if self.runRemainingCode:
                     if self.printStartupCode:
                         self.console.addPrompt()
