@@ -1,1 +1,1 @@
-from .pysole import probe, InteractiveConsole
+from .pysole import probe, _standalone, InteractiveConsole
