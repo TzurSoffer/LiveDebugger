@@ -5,7 +5,10 @@ import tkinter as tk
 class CodeSuggestionManager:
     """Manages code suggestions and autocomplete functionality."""
     
-    def __init__(self, textWidget, userLocals, userGlobals):
+    def __init__(self, textWidget, userLocals, userGlobals, theme, font):
+        self.THEME = theme
+        self.FONT = font
+
         self.userLocals = userLocals
         self.userGlobals = userGlobals
         self.textWidget = textWidget
@@ -111,14 +114,14 @@ class CodeSuggestionManager:
         """Create the suggestion popup window."""
         self.suggestionWindow = tk.Toplevel(self.textWidget)
         self.suggestionWindow.wm_overrideredirect(True)
-        self.suggestionWindow.configure(bg="#2d2d2d")
+        self.suggestionWindow.configure(bg=self.THEME["SUGGESTION_BOX_BG"])
         
         self.suggestionListbox = tk.Listbox(
             self.suggestionWindow,
-            bg="#2d2d2d",
-            fg="white",
-            selectbackground="#0066cc",
-            font=("Consolas", 10),
+            bg=self.THEME["SUGGESTION_BOX_BG"],
+            fg=self.THEME["FOREGROUND"],
+            selectbackground=self.THEME["SUGGESTION_BOX_SELECTION_BG"],
+            font=(self.FONT["FONT"], max(2, (self.FONT["FONT_SIZE"]-2))),
             height=8
         )
         self.suggestionListbox.pack()

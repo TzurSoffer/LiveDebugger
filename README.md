@@ -114,11 +114,9 @@ pysole.probe()
 
 ## Customization
 
-*   **Appearance mode**: Dark mode is default (`ctk.set_appearance_mode("dark")`)
-    
-*   **Font**: Consolas, 12pt by default, configurable in `InteractiveConsoleText` constructor
-    
-*   **Syntax Highlighting Style**: Change Pygments style by modifying `get_style_by_name("monokai")`
+*   **Appearance mode**: Dark mode is default, but can be changed via files menu
+
+*   **Themes**: Pysole has multiple preconfigured themes. You can choose a theme via the Theme Picker, which updates the console colors and appearance. Preconfigured themes are loaded from themes.json and the selected theme is saved in settings.json so it persists across sessions.
 
 
 

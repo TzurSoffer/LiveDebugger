@@ -1,0 +1,25 @@
+{
+    "THEME": {
+        "APPEARANCE": "light",
+        "LEXER_STYLE": "friendly",
+        "BACKGROUND": "#ffffff",
+        "HIGHLIGHTED_BACKGROUND": "#cce6ff",
+        "FOREGROUND": "#000000",
+        "HIGHLIGHTED_FOREGROUND": "#000000",
+        "INSERTBACKGROUND": "#000000",
+        "PROMPT": "#008000",
+        "OUTPUT": "#000000",
+        "ERROR": "#ff0000",
+        "RESULT": "#0066cc",
+        "SUGGESTION_BOX_BG": "#f0f0f0",
+        "SUGGESTION_BOX_SELECTION_BG": "#cce6ff",
+        "FONT": {
+            "FONT": "Consolas",
+            "FONT_SIZE": 12
+        }
+    },
+    "BEHAVIOR": {
+        "DEFAULT_SIZE": "900x600",
+        "PRIMARY_PROMPT": ">>> "
+    }
+}

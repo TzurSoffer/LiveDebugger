@@ -1,22 +1,21 @@
 import threading
 import traceback
-from suggestionManager import CodeSuggestionManager
-from commandHistory import CommandHistory
-from styledTextbox import StyledTextWindow
+from .suggestionManager import CodeSuggestionManager
+from .commandHistory import CommandHistory
+from .styledTextbox import StyledTextWindow
 
 import tkinter as tk
 
 class InteractiveConsoleText(StyledTextWindow):
     """TBD"""
-    
-    PROMPT = ">>> "
-    PROMPT_LENGTH = 4
-    
-    def __init__(self, master, helpTab, userLocals=None, userGlobals=None, **kwargs):
-        super().__init__(master, **kwargs)
+    def __init__(self, master, helpTab, theme, font, behavior, userLocals=None, userGlobals=None, **kwargs):
+        super().__init__(master, theme=theme, font=font, **kwargs)
+        self.font=(font["FONT"], font["FONT_SIZE"])
         
         # Initialize components
-        self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals)
+        self.PROMPT = behavior["PRIMARY_PROMPT"]
+        self.PROMPT_LENGTH = len(self.PROMPT)
+        self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals, theme=theme, font=font)
         self.helpTab = helpTab
         
         self.navigatingHistory = False

@@ -2,12 +2,12 @@ import sys
 import io
 from pygments.styles import get_style_by_name
 import customtkinter as ctk
-from styledTextbox import StyledTextWindow
+from .styledTextbox import StyledTextWindow
 
 class HelpTab(ctk.CTkFrame):
     """A right-hand help tab with closable and updateable text content."""
 
-    def __init__(self, parent, width=500, title="Help", **kwargs):
+    def __init__(self, parent, theme, font, width=500, title="Help", **kwargs):
         super().__init__(parent, width=width, **kwargs)
         self.parent = parent
         self.visible = False
@@ -18,16 +18,16 @@ class HelpTab(ctk.CTkFrame):
         # Header frame with title and close button
         headerFrame = ctk.CTkFrame(self, height=30)
         headerFrame.pack(fill="x")
-        self.style = get_style_by_name("monokai")
+        self.style = get_style_by_name(theme["LEXER_STYLE"])
 
-        self.titleLabel = ctk.CTkLabel(headerFrame, text=title, font=("Consolas", 12, "bold"))
+        self.titleLabel = ctk.CTkLabel(headerFrame, text=title, font=(font["FONT"], font["FONT_SIZE"], "bold"))
         self.titleLabel.pack(side="left", padx=5)
 
         self.closeButton = ctk.CTkButton(headerFrame, text="X", height=20, command=self.close)
         self.closeButton.pack(side="right", padx=5)
 
         # Scrollable text area
-        self.textBox = StyledTextWindow(self, wrap="word", font=("Consolas", 11), bg="#2e2e2e")
+        self.textBox = StyledTextWindow(self, theme, {"FONT": font["FONT"], "FONT_SIZE": max(0, (font["FONT_SIZE"]-1))}, wrap="word", bg="#2e2e2e")
         self.textBox.pack(fill="both", expand=True, padx=5, pady=5)
         self.textBox.configure(state="disabled")  # read-only
 

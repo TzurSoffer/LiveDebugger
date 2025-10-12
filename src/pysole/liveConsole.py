@@ -5,4 +5,4 @@ warnings.warn(
     stacklevel=2
 )
 
-from pysole import *
+from .pysole import *

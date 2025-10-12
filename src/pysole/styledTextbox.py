@@ -4,29 +4,28 @@ from pygments.lexers import PythonLexer
 from pygments.styles import get_style_by_name
 
 class StyledTextWindow(tk.Text):
-    def __init__(self, master,  **kwargs):
+    def __init__(self, master, theme, font, **kwargs):
         super().__init__(master, **kwargs)
        
         # Syntax highlighting setup
         self.lexer = PythonLexer()
-        self.style = get_style_by_name("monokai")
-        
-        # Setup tags
-        self._setupTags()
+        self.style = get_style_by_name(theme["LEXER_STYLE"])
 
-    def _setupTags(self):
+        self._setupTags(theme, font)
+
+    def _setupTags(self, theme, font):
         """Configure text tags for different output types."""
-        self.tag_configure("prompt", foreground="#00ff00", font=("Consolas", 12, "bold"))
-        self.tag_configure("output", foreground="#ffffff", font=("Consolas", 12))
-        self.tag_configure("error", foreground="#ff6666", font=("Consolas", 12))
-        self.tag_configure("result", foreground="#66ccff", font=("Consolas", 12))
+        self.tag_configure("prompt", foreground=theme["PROMPT"], font=(font["FONT"], font["FONT_SIZE"], "bold"))
+        self.tag_configure("output", foreground=theme["OUTPUT"], font=(font["FONT"], font["FONT_SIZE"]))
+        self.tag_configure("error", foreground=theme["ERROR"], font=(font["FONT"], font["FONT_SIZE"]))
+        self.tag_configure("result", foreground=theme["RESULT"], font=(font["FONT"], font["FONT_SIZE"]))
         
         # Configure syntax highlighting tags
         for token, style in self.style:
             if style["color"]:
                 fg = f"#{style['color']}"
-                font = ("Consolas", 12, "bold" if style["bold"] else "normal")
-                self.tag_configure(str(token), foreground=fg, font=font)
+                tagFont = (font["FONT"], font["FONT_SIZE"], "bold" if style["bold"] else "normal")
+                self.tag_configure(str(token), foreground=fg, font=tagFont)
 
 
     def updateStyling(self, start="1.0"):
