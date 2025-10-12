@@ -1,3 +1,5 @@
+import threading
+import time
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
@@ -6,7 +8,7 @@ import sys
 import io
 import json
 
-from .utils import settingsPath, themesPath
+from .utils import settingsPath, themesPath, stdPrint
 from .helpTab import HelpTab
 from .mainConsole import InteractiveConsoleText
 
@@ -35,15 +37,17 @@ class StdinRedirect(io.StringIO):
 
 class InteractiveConsole(ctk.CTk):
     """Main console window application."""
-    
-    def __init__(self, userGlobals=None, userLocals=None, callerFrame=None, theme=None, defaultSize=None, primaryPrompt=None):
+
+    def __init__(self, userGlobals=None, userLocals=None, callerFrame=None,
+                 defaultSize=None, primaryPrompt=None,
+                 runRemainingCode=False, printStartupCode=True):
         super().__init__()
         with open(settingsPath, "r") as f:
             settings = json.load(f)
         self.THEME = settings["THEME"]
         self.FONT = self.THEME["FONT"]
         self.BEHAVIOR = settings["BEHAVIOR"]
-        
+
         if primaryPrompt != None:
             self.BEHAVIOR["PRIMARY_PROMPT"] = primaryPrompt
         if defaultSize != None:
@@ -51,7 +55,7 @@ class InteractiveConsole(ctk.CTk):
 
         self.title("Live Interactive Console")
         self.geometry(self.BEHAVIOR["DEFAULT_SIZE"])
-        
+
         ctk.set_appearance_mode(self.THEME["APPEARANCE"])
         ctk.set_default_color_theme("blue")
 
@@ -63,17 +67,30 @@ class InteractiveConsole(ctk.CTk):
                 userGlobals = callerFrame.f_globals
             if userLocals is None:
                 userLocals = callerFrame.f_locals
-        
+
         self.userGlobals = userGlobals
         self.userLocals = userLocals
-        
+
         # Create UI
         self._createMenu()
         self._createUi()
-        
+
         # Redirect stdout/stderr
         self._setupOutputRedirect()
         self._setupInputRedirect()
+        
+        self.printStartupCode = printStartupCode
+        self.startupCode = ()
+        if runRemainingCode:
+            code_obj = callerFrame.f_code
+            filename = code_obj.co_filename
+
+            # Read the rest of the file after the call to probe()
+            with open(filename, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            startLine = callerFrame.f_lineno
+            self.startupCode = lines[startLine:]
 
     def _createMenu(self):
         """Create a menu bar using CTkOptionMenu."""
@@ -99,7 +116,7 @@ class InteractiveConsole(ctk.CTk):
             self._editSettings()
         elif choice == "Load Theme":
             self._loadTheme()
-    
+
     def _loadTheme(self):
         """
         Open a CTk popup to let the user choose a theme from themes.json.
@@ -218,28 +235,51 @@ class InteractiveConsole(ctk.CTk):
         self.console.pack(fill="both", expand=True, padx=5, pady=5)
         self.console.master = self
 
-    
     def _setupOutputRedirect(self):
         """Setup stdout/stderr redirection to console."""
         sys.stdout = StdoutRedirect(self.console.writeOutput)
         sys.stderr = StdoutRedirect(
-            lambda text, tag: self.console.writeOutput(text, "error")
+            lambda text, tag: self.console.writeOutput(text, "error", "end")
         )
 
     def _setupInputRedirect(self):
         """Setup stdin redirection to console."""
         sys.stdin = StdinRedirect(self.console.readInput)
-    
+
+    def onClose(self):
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        self.destroy()
+
     def probe(self, *args, **kwargs):
         """Start the console main loop."""
+        def runStartup():
+            self.console.newline()
+            self.console.writeOutput("Welcome to Pysole, if you find me useful, please star me on github:\nhttps://github.com/TzurSoffer/Pysole", "instruction")
+            for line in self.startupCode:
+                line = line.rstrip()
+                while self.console.isExecuting:
+                    time.sleep(0.01)
+                if self.printStartupCode:
+                    self.console.runCommand(line, printCommand=True)
+                else:
+                    self.console.runCommand(line, printCommand=False)
+
+            if self.printStartupCode == False:
+                self.console.resetCurrentLineNumber()
+                self.console.addPrompt()
+        threading.Thread(target=runStartup).start()
         self.mainloop(*args, **kwargs)
 
-def probe(userGlobals=None, userLocals=None, callerFrame=None):
+def probe(userGlobals=None, userLocals=None, callerFrame=None, runRemainingCode=False, printStartupCode=False, **kwargs):
     if callerFrame == None:
         callerFrame = inspect.currentframe().f_back
     InteractiveConsole(userGlobals=userGlobals,
                               userLocals=userLocals,
-                              callerFrame=callerFrame).probe()
+                              callerFrame=callerFrame,
+                              runRemainingCode=runRemainingCode,
+                              printStartupCode=printStartupCode,
+                              **kwargs).probe()
 
 def _standalone():
     import pysole

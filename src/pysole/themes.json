@@ -11,6 +11,7 @@
         "OUTPUT": "#ffffff",
         "ERROR": "#ff0000",
         "RESULT": "#66ccff",
+        "INSTRUCTION": "#ffff00",
         "SUGGESTION_BOX_BG": "#2d2d2d",
         "SUGGESTION_BOX_SELECTION_BG": "#0066cc",
         "FONT": {
@@ -30,6 +31,7 @@
         "OUTPUT": "#000000",
         "ERROR": "#ff0000",
         "RESULT": "#0066cc",
+        "INSTRUCTION": "#ffff00",
         "SUGGESTION_BOX_BG": "#f0f0f0",
         "SUGGESTION_BOX_SELECTION_BG": "#cce6ff",
         "FONT": {
@@ -49,6 +51,7 @@
         "OUTPUT": "#586e75",
         "ERROR": "#dc322f",
         "RESULT": "#2aa198",
+        "INSTRUCTION": "#ffff00",
         "SUGGESTION_BOX_BG": "#eee8d5",
         "SUGGESTION_BOX_SELECTION_BG": "#b58900",
         "FONT": {
@@ -68,6 +71,7 @@
         "OUTPUT": "#f8f8f2",
         "ERROR": "#ff5555",
         "RESULT": "#8be9fd",
+        "INSTRUCTION": "#ffff00",
         "SUGGESTION_BOX_BG": "#44475a",
         "SUGGESTION_BOX_SELECTION_BG": "#6272a4",
         "FONT": {

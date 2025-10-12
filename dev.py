@@ -2,6 +2,10 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath("src"))
-from pysole.pysole import _standalone
+from pysole.pysole import _standalone, probe, InteractiveConsole
 
-_standalone()
+a = probe(primaryPrompt="[Dev] ", defaultSize="1200x600", runRemainingCode=True, printStartupCode=False)
+
+print("Dev Branch")
+x = 2
+print(x)

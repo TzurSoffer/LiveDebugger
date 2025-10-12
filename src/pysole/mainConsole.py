@@ -3,6 +3,7 @@ import traceback
 from .suggestionManager import CodeSuggestionManager
 from .commandHistory import CommandHistory
 from .styledTextbox import StyledTextWindow
+from .utils import stdPrint
 
 import tkinter as tk
 
@@ -11,16 +12,16 @@ class InteractiveConsoleText(StyledTextWindow):
     def __init__(self, master, helpTab, theme, font, behavior, userLocals=None, userGlobals=None, **kwargs):
         super().__init__(master, theme=theme, font=font, **kwargs)
         self.font=(font["FONT"], font["FONT_SIZE"])
-        
+
         # Initialize components
         self.PROMPT = behavior["PRIMARY_PROMPT"]
         self.PROMPT_LENGTH = len(self.PROMPT)
         self.suggestionManager = CodeSuggestionManager(self, userLocals=userLocals, userGlobals=userGlobals, theme=theme, font=font)
         self.helpTab = helpTab
-        
+
         self.navigatingHistory = False
         self.history = CommandHistory()
-        
+
         self.inputVar = tk.StringVar()
         self.waitingForInput = False
         self.inputLine = "1.0"
@@ -28,10 +29,10 @@ class InteractiveConsoleText(StyledTextWindow):
         # Track current command
         self.currentCommandLine = 1
         self.isExecuting = False
-        
+
         # Setup bindings
         self._setupBindings()
-        
+
         # Initialize with first prompt
         self.addPrompt()
 
@@ -52,11 +53,14 @@ class InteractiveConsoleText(StyledTextWindow):
     def getCurrentLineNumber(self):
         """Get the line number where current command starts."""
         return(int(self.index("end-1c").split(".")[0]))
-    
+
+    def resetCurrentLineNumber(self):
+        self.currentCommandLine = self.getCurrentLineNumber()
+
     def getCommandStartPosition(self):
         """Get the starting position of the current command."""
         return(f"{self.currentCommandLine}.0")
-    
+
     def replaceCurrentCommand(self, newCommand):
         """Replace the current command with new text."""
         if self.isExecuting:
@@ -72,6 +76,16 @@ class InteractiveConsoleText(StyledTextWindow):
         self.see("end")
         # Ensure styling/lexer applied after programmatic change:
         self.updateStyling(start=self.getPromptPosition())
+
+    def runCommand(self, command, printCommand=False):
+        """Insert code into the console prompt and execute it as if Enter was pressed."""
+        if self.isExecuting:
+            return(False)
+        if printCommand:
+            self.replaceCurrentCommand(command)  #< Replace current command with the new code
+            self.onEnter(None)  #< Simulate pressing Enter to run the command
+        else:
+            self.executeCommandThreaded(command, addPrompt=False)
 
     def isCursorInEditableArea(self):
         """Check if cursor is in the editable command area."""
@@ -94,25 +108,26 @@ class InteractiveConsoleText(StyledTextWindow):
             self.inputVar.set(line)
             self.waitingForInput = False
             return("break")
-        
+
         if self.isExecuting:
             return("break")
-        
+
         command = self.getCurrentCommand()
-        
+        # print(command)
+
         if not command.strip():
             return("break")
-        
+
         # Check if statement is incomplete
         if self.isIncompleteStatement(command):
             return(self.onShiftEnter(event))
-        
+
         # Execute the command
         self.history.add(command)
         self.mark_set("insert", "end")
         self.insert("end", "\n")
         self.see("end")
-        
+
         # Execute in thread
         self.isExecuting = True
         threading.Thread(
@@ -120,7 +135,7 @@ class InteractiveConsoleText(StyledTextWindow):
             args=(command,),
             daemon=True
         ).start()
-        
+
         return("break")
 
     def readInput(self):
@@ -324,13 +339,17 @@ class InteractiveConsoleText(StyledTextWindow):
         
         return(currentIndent)
 
-    def writeOutput(self, text, tag="output"):
+    def writeOutput(self, text, tag="output", loc="end"):
         """Write output to the console (thread-safe)."""
         def _write():
-            self.insert("end", text + "\n", tag)
+            self.insert(loc, text + "\n", tag)
             self.see("end")
         
         self.after(0, _write)
+    
+    def newline(self):
+        """Insert a newline at the end."""
+        self.writeOutput("")
 
     def getPromptPosition(self):
         """Get the position right after the prompt on current command line."""
@@ -357,16 +376,15 @@ class InteractiveConsoleText(StyledTextWindow):
             self.mark_set("insert", "end")
             self.see("end")
             self.isExecuting = False
-        
+
         if self.isExecuting:
             self.after(0, _add)
         else:
             _add()
     
-    def executeCommandThreaded(self, command):
+    def executeCommandThreaded(self, command, addPrompt=True):
         """Execute a command in a separate thread."""
         try:
-            # Try eval first for expressions
             result = eval(command, self.master.userGlobals, self.master.userLocals)
             if result is not None:
                 self.writeOutput(str(result), "result")
@@ -380,5 +398,7 @@ class InteractiveConsoleText(StyledTextWindow):
         except Exception:
             self.writeOutput(traceback.format_exc(), "error")
         
-        # Add new prompt after execution
-        self.addPrompt()
+        if addPrompt:
+            self.addPrompt()
+        else:
+            self.isExecuting = False

@@ -1,21 +1,21 @@
 {
     "THEME": {
-        "APPEARANCE": "light",
-        "LEXER_STYLE": "friendly",
-        "BACKGROUND": "#ffffff",
-        "HIGHLIGHTED_BACKGROUND": "#cce6ff",
-        "FOREGROUND": "#000000",
-        "HIGHLIGHTED_FOREGROUND": "#000000",
-        "INSERTBACKGROUND": "#000000",
-        "PROMPT": "#008000",
-        "OUTPUT": "#000000",
+        "APPEARANCE": "dark",
+        "LEXER_STYLE": "monokai",
+        "BACKGROUND": "#1e1e1e",
+        "HIGHLIGHTED_BACKGROUND": "#0078d7",
+        "FOREGROUND": "white",
+        "HIGHLIGHTED_FOREGROUND": "black",
+        "INSERTBACKGROUND": "white",
+        "PROMPT": "#00ff00",
+        "OUTPUT": "#ffffff",
         "ERROR": "#ff0000",
-        "RESULT": "#0066cc",
-        "SUGGESTION_BOX_BG": "#f0f0f0",
-        "SUGGESTION_BOX_SELECTION_BG": "#cce6ff",
+        "RESULT": "#66ccff",
+        "SUGGESTION_BOX_BG": "#2d2d2d",
+        "SUGGESTION_BOX_SELECTION_BG": "#0066cc",
         "FONT": {
             "FONT": "Consolas",
-            "FONT_SIZE": 12
+            "FONT_SIZE": 16
         }
     },
     "BEHAVIOR": {

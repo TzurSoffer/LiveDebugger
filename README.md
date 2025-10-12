@@ -8,6 +8,8 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 *   Python syntax highlighting via **Pygments**
     
 *   Autocomplete for **keywords, built-ins, and local/global variables**
+
+*   Run code at startup for easier debugging
     
 *   Thread-safe execution of Python code
     
@@ -39,6 +41,15 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
     
 *   Highlights Python keywords, built-ins, and expressions in the console.
     
+### Run Code at Startup
+
+*   Pysole can automatically execute Python code when the console launches.
+
+*   Use the runRemainingCode=True argument in pysole.probe() to run all remaining lines in the calling script after the probe() call.
+
+*   The printStartupCode flag controls whether these lines are printed in the console as they execute (True) or run silently (False).
+
+*   Useful for initializing variables, importing libraries, or setting up your environment automatically.
 
 ### Autocomplete
 
@@ -96,6 +107,15 @@ A fully-featured, **live Python console GUI** built with **CustomTkinter** and *
 ```
 import pysole
 pysole.probe()
+```
+or for also running some code at the startup of the pysole
+```
+import pysole
+pysole.probe(runRemainingCode=True,   #< for executing the code below probe
+             printStartupCode=True    #< for printing the command as well as it output
+             )
+x = 1                                 #< initialize some variable
+print(x)                              #< print the variable on the console
 ```
 
 *   Type Python commands in the `>>>` prompt and see live output.

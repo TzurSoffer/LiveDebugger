@@ -11,6 +11,7 @@
         "OUTPUT": "#ffffff",
         "ERROR": "#ff0000",
         "RESULT": "#66ccff",
+        "INSTRUCTION": "#ffff00",
         "SUGGESTION_BOX_BG": "#2d2d2d",
         "SUGGESTION_BOX_SELECTION_BG": "#0066cc",
         "FONT": {

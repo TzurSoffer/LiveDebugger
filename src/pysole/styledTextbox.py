@@ -19,6 +19,7 @@ class StyledTextWindow(tk.Text):
         self.tag_configure("output", foreground=theme["OUTPUT"], font=(font["FONT"], font["FONT_SIZE"]))
         self.tag_configure("error", foreground=theme["ERROR"], font=(font["FONT"], font["FONT_SIZE"]))
         self.tag_configure("result", foreground=theme["RESULT"], font=(font["FONT"], font["FONT_SIZE"]))
+        self.tag_configure("instruction", foreground=theme["INSTRUCTION"], font=(font["FONT"], font["FONT_SIZE"]))
         
         # Configure syntax highlighting tags
         for token, style in self.style:
