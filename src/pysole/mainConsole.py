@@ -23,6 +23,7 @@ class InteractiveConsoleText(StyledTextWindow):
         
         self.inputVar = tk.StringVar()
         self.waitingForInput = False
+        self.inputLine = "1.0"
 
         # Track current command
         self.currentCommandLine = 1
@@ -41,6 +42,7 @@ class InteractiveConsoleText(StyledTextWindow):
         self.bind("<Control-c>", self.cancel)
         self.bind("<Tab>", self.onTab)
         self.bind("<BackSpace>", self.onBackspace)
+        self.bind("<Delete>", self.onDelete)
         self.bind("<KeyRelease>", self.onKeyRelease)
         self.bind("<KeyPress>", self.onKeyPress)
         self.bind("<Button-1>", self.onClick)
@@ -64,9 +66,13 @@ class InteractiveConsoleText(StyledTextWindow):
         end = "end-1c"
         
         self.delete(start, end)
-        self.insert(start, newCommand)
+        if newCommand:
+            self.insert(start, newCommand)
+        self.mark_set("insert", "end")
         self.see("end")
-    
+        # Ensure styling/lexer applied after programmatic change:
+        self.updateStyling(start=self.getPromptPosition())
+
     def isCursorInEditableArea(self):
         """Check if cursor is in the editable command area."""
         if self.isExecuting:
@@ -120,10 +126,11 @@ class InteractiveConsoleText(StyledTextWindow):
     def readInput(self):
         """Return the last entered line when input() is called."""
         self.waitingForInput = True
+        self.inputLine = self.index("end -1c")
         self.wait_variable(self.inputVar)  #< waits until Enter is pressed
         line = self.inputVar.get()
         self.inputVar.set("")  #< reset
-        return(line)
+        return(line or "\n")
 
     def onShiftEnter(self, event):
         """Handle Shift+Enter - new line with auto-indent."""
@@ -162,15 +169,35 @@ class InteractiveConsoleText(StyledTextWindow):
     
     def onBackspace(self, event):
         """Prevent backspace from deleting the prompt."""
+        
+        if self.waitingForInput:      #< During input mode, only allow editing after input start
+            if self.compare("insert", "<=", self.inputLine):
+                return "break"
+            return None
+            
         if not self.isCursorInEditableArea():
-            return("break")
+            return "break"
         
         # Check if we're at the prompt boundary
         cursorPos = self.index("insert")
         promptPos = self.getPromptPosition()
         
         if self.compare(cursorPos, "<=", promptPos):
+            return "break"
+        
+        return None
+    
+    def onDelete(self, event):
+        """Prevent delete from deleting protected content."""
+        if self.waitingForInput:      #< During input mode, only allow editing after input start
+            if self.compare("insert", "<=", self.inputLine):
+                return("break")
+            return(None)
+            
+        if not self.isCursorInEditableArea():
             return("break")
+        
+        return(None)
 
     def onClick(self, event):
         """Handle mouse clicks - Ctrl+Click opens help for the clicked word."""
@@ -206,7 +233,11 @@ class InteractiveConsoleText(StyledTextWindow):
 
     def onKeyPress(self, event):
         """Handle key press events."""
-        # print(event.keysym)
+        if self.waitingForInput:      #< During input mode, only allow editing after input start
+            if (self.compare("insert", "<=", self.inputLine) and event.keysym == "Left"):
+                return("break")
+            return(None)
+
         if self.suggestionManager.suggestionWindow and \
            self.suggestionManager.suggestionWindow.winfo_viewable():
             if event.keysym == "Escape":
