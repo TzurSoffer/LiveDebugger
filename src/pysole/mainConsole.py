@@ -50,6 +50,10 @@ class InteractiveConsoleText(StyledTextWindow):
         self.bind("<Up>", self.onUp)
         self.bind("<Down>", self.onDown)
 
+    def getPromptPosition(self):
+        """Get the position right after the prompt on current command line."""
+        return(f"{self.currentCommandLine}.{self.PROMPT_LENGTH}")
+
     def getCurrentLineNumber(self):
         """Get the line number where current command starts."""
         return(int(self.index("end-1c").split(".")[0]))
@@ -60,30 +64,35 @@ class InteractiveConsoleText(StyledTextWindow):
     def getCommandStartPosition(self):
         """Get the starting position of the current command."""
         return(f"{self.currentCommandLine}.0")
+    
+    def writeToPrompt(self, text):
+        """Write text to the prompt of the console"""
+        if self.isExecuting:
+            return
+
+        if text:
+            self.insert("end", text)
+        self.mark_set("insert", "end")
+        self.see("end")
+        self.updateStyling(start=self.getPromptPosition())    #< Ensure styling/lexer applied after programmatic change:
 
     def replaceCurrentCommand(self, newCommand):
         """Replace the current command with new text."""
-        if self.isExecuting:
-            return
-        
         start = self.getPromptPosition()
         end = "end-1c"
-        
         self.delete(start, end)
-        if newCommand:
-            self.insert(start, newCommand)
-        self.mark_set("insert", "end")
-        self.see("end")
-        # Ensure styling/lexer applied after programmatic change:
-        self.updateStyling(start=self.getPromptPosition())
+        self.writeToPrompt(newCommand)
 
-    def runCommand(self, command, printCommand=False):
+    def runCommand(self, command, printCommand=False, clearPrompt=True):
         """Insert code into the console prompt and execute it as if Enter was pressed."""
         if self.isExecuting:
             return(False)
         if printCommand:
-            self.replaceCurrentCommand(command)  #< Replace current command with the new code
-            self.onEnter(None)  #< Simulate pressing Enter to run the command
+            if clearPrompt:
+                self.replaceCurrentCommand(command)  #< Replace current command with the new code
+            else:
+                self.writeToPrompt(command)
+            self.onEnter(None, insertWhitespace=False)                       #< Simulate pressing Enter to run the command
         else:
             self.executeCommandThreaded(command, addPrompt=False)
 
@@ -98,7 +107,7 @@ class InteractiveConsoleText(StyledTextWindow):
         return((cursorLine >= self.currentCommandLine and 
                 (cursorLine > self.currentCommandLine or cursorCol >= self.PROMPT_LENGTH)))
 
-    def onEnter(self, event):
+    def onEnter(self, event, insertWhitespace=True):
         """Handle Enter key - execute command."""
         self.suggestionManager.hideSuggestions()
         
@@ -120,7 +129,10 @@ class InteractiveConsoleText(StyledTextWindow):
 
         # Check if statement is incomplete
         if self.isIncompleteStatement(command):
-            return(self.onShiftEnter(event))
+            if insertWhitespace:
+                return(self.onShiftEnter(event))
+            self.insert("insert", "\n")
+            return("break")
 
         # Execute the command
         self.history.add(command)
@@ -350,10 +362,6 @@ class InteractiveConsoleText(StyledTextWindow):
     def newline(self):
         """Insert a newline at the end."""
         self.writeOutput("")
-
-    def getPromptPosition(self):
-        """Get the position right after the prompt on current command line."""
-        return(f"{self.currentCommandLine}.{self.PROMPT_LENGTH}")
 
     def getCurrentCommand(self):
         """Extract the current command text (without prompt)."""

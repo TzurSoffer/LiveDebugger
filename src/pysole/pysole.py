@@ -86,7 +86,6 @@ class InteractiveConsole(ctk.CTk):
         
         self.runRemainingCode = runRemainingCode
         self.printStartupCode = printStartupCode
-        self.leadingWhitespaceLen = 0
         self.removeWaterMark = removeWaterMark
         self.startupCode = ()
         if runRemainingCode:
@@ -99,8 +98,9 @@ class InteractiveConsole(ctk.CTk):
 
             startLineIndex = callerFrame.f_lineno
             startLine = lines[startLineIndex - 1]
-            self.leadingWhitespaceLen = len(startLine) - len(startLine.lstrip())
+            leadingWhitespaceLen = len(startLine) - len(startLine.lstrip())
             self.startupCode = lines[startLineIndex:]
+            self.startupCode = [line.rstrip()[leadingWhitespaceLen:] for line in self.startupCode]
 
     def _createMenu(self):
         """Create a menu bar using CTkOptionMenu."""
@@ -260,42 +260,47 @@ class InteractiveConsole(ctk.CTk):
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
         self.destroy()
+    
+    def _printWaterMark(self):
+        m = (
+            "Welcome to Pysole, if you find me useful, please star me on GitHub:\n"
+            "https://github.com/TzurSoffer/Pysole"
+        )
+        stdPrint(m)
+        self.console.newline()
+        self.console.writeOutput(m, "instruction")
+        time.sleep(0.1)
+        if self.runRemainingCode:
+            if self.printStartupCode:
+                self.console.addPrompt()
+            else:
+                self.console.newline()
+        else:
+            self.console.addPrompt()
+
+    def _runStartup(self):
+        if self.removeWaterMark == False:
+            self._printWaterMark()
+
+        if self.runRemainingCode == False:
+            return
+
+        if self.printStartupCode == False:
+            self.console.newline()
+            code = "\n".join(self.startupCode)
+            self.console.executeCommandThreaded(code, addPrompt=True)
+            return
+
+        for line in self.startupCode:
+            while self.console.isExecuting:
+                time.sleep(0.01)
+            self.console.runCommand(line, printCommand=True, clearPrompt=False)
+            time.sleep(1)
+            stdPrint(line)
 
     def probe(self, *args, **kwargs):
         """Start the console main loop."""
-        def runStartup():
-            if not self.removeWaterMark:
-                m = (
-                    "Welcome to Pysole, if you find me useful, please star me on GitHub:\n"
-                    "https://github.com/TzurSoffer/Pysole"
-                )
-                stdPrint(m)
-                self.console.newline()
-                self.console.writeOutput(m, "instruction")
-                time.sleep(0.1)
-                if self.runRemainingCode:
-                    if self.printStartupCode:
-                        self.console.addPrompt()
-                    else:
-                        self.console.newline()
-                else:
-                    self.console.addPrompt()
-            elif self.runRemainingCode == True and self.printStartupCode == False:
-                self.console.newline()
-
-            for line in self.startupCode:
-                line = line.rstrip()[self.leadingWhitespaceLen:]
-                while self.console.isExecuting:
-                    time.sleep(0.01)
-                if self.printStartupCode:
-                    self.console.runCommand(line, printCommand=True)
-                else:
-                    self.console.runCommand(line, printCommand=False)
-
-            if self.runRemainingCode == True and self.printStartupCode == False:
-                self.console.resetCurrentLineNumber()
-                self.console.addPrompt()
-        threading.Thread(target=runStartup).start()
+        self.after(0, threading.Thread(target=self._runStartup).start)
         self.mainloop(*args, **kwargs)
 
 def probe(userGlobals=None, userLocals=None, callerFrame=None,
