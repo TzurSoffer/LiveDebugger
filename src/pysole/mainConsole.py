@@ -128,12 +128,8 @@ class InteractiveConsoleText(StyledTextWindow):
             return("break")
 
         # Check if statement is incomplete
-        if self.isIncompleteStatement(command):
-            if insertWhitespace:
-                return(self.onShiftEnter(event))
-            self.insert("insert", "\n")
-            return("break")
-
+        if self.isIncompleteStatement(command) and insertWhitespace:
+            return(self.onShiftEnter(event))
         # Execute the command
         self.history.add(command)
         self.mark_set("insert", "end")

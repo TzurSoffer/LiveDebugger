@@ -277,7 +277,31 @@ class InteractiveConsole(ctk.CTk):
                 self.console.newline()
         else:
             self.console.addPrompt()
+    
+    def _splitCodeIntoChunks(self):
+        codeChunks = []
+        currentChunk = []
 
+        for line in self.startupCode:
+            strippedLine = line.lstrip()
+            indentLevel = len(line) - len(strippedLine)
+
+            if not strippedLine:  #< Blank line, keep it in current chunk
+                currentChunk.append(line)
+                continue
+
+            if indentLevel != 0:
+                currentChunk.append(line)
+            else:
+                codeChunks.append(currentChunk)
+                currentChunk = [line]
+
+        if currentChunk:
+            codeChunks.append(currentChunk)
+
+        return(["\n".join(chunk).strip() for chunk in codeChunks if any(line.strip() for line in chunk)])
+
+    
     def _runStartup(self):
         if self.removeWaterMark == False:
             self._printWaterMark()
@@ -290,13 +314,15 @@ class InteractiveConsole(ctk.CTk):
             code = "\n".join(self.startupCode)
             self.console.executeCommandThreaded(code, addPrompt=True)
             return
-
-        for line in self.startupCode:
+        
+        chunks = self._splitCodeIntoChunks()
+        for chunk in chunks:
             while self.console.isExecuting:
                 time.sleep(0.01)
-            self.console.runCommand(line, printCommand=True, clearPrompt=False)
+            self.console.runCommand(chunk, printCommand=True, clearPrompt=True)
             time.sleep(1)
-            stdPrint(line)
+            stdPrint(chunk)
+            stdPrint("\n\n")
 
     def probe(self, *args, **kwargs):
         """Start the console main loop."""

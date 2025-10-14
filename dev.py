@@ -11,5 +11,13 @@ print("a")
 def main():
     print("Hello, world!")
     x = 2
+    if x == 1:
+        print("False")
+        
+        print("Still False")
+
+    elif x == 2:
+        if True:
+            print("True")
     print(x)
 main()
