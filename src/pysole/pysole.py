@@ -320,9 +320,6 @@ class InteractiveConsole(ctk.CTk):
             while self.console.isExecuting:
                 time.sleep(0.01)
             self.console.runCommand(chunk, printCommand=True, clearPrompt=True)
-            time.sleep(1)
-            stdPrint(chunk)
-            stdPrint("\n\n")
 
     def probe(self, *args, **kwargs):
         """Start the console main loop."""
