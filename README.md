@@ -3,6 +3,12 @@
 ## You can finally test your code in real time without using idle!
 ### If you found [this repository](https://github.com/TzurSoffer/Pysole) useful, please give it a ⭐!.
 
+## Showcase
+<video width="480" height="270" controls>
+  <source src="Showcase.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
 A fully-featured, **live Python console GUI** built with **CustomTkinter** and **Tkinter**, featuring:
 
 *   Python syntax highlighting via **Pygments**
