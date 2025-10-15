@@ -4,10 +4,7 @@
 ### If you found [this repository](https://github.com/TzurSoffer/Pysole) useful, please give it a ⭐!.
 
 ## Showcase
-<video width="480" height="270" controls>
-  <source src="https://github.com/TzurSoffer/Pysole/blob/main/Showcase.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch the demo](Showcase/thumbnail.png)](https://github.com/TzurSoffer/Pysole/blob/main/Showcase/Showcase.mp4)
 
 A fully-featured, **live Python console GUI** built with **CustomTkinter** and **Tkinter**, featuring:
 

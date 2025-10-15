@@ -1,7 +1,7 @@
 .history/
 .vscode/
 __pycache__/
-Showcase/
+.Showcase/
 liveConsole.egg-info/
 dist/
 *.pyc
