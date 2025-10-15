@@ -3,8 +3,8 @@
 ## You can finally test your code in real time without using idle!
 ### If you found [this repository](https://github.com/TzurSoffer/Pysole) useful, please give it a ⭐!.
 
-## Showcase
-[![Watch the demo](Showcase/thumbnail.png)](https://github.com/TzurSoffer/Pysole/blob/main/Showcase/Showcase.mp4)
+## Showcase (click to watch on Youtube)
+[![Watch the demo](Showcase/thumbnail.png)](https://www.youtube.com/shorts/pjoelNjc3O0)
 
 A fully-featured, **live Python console GUI** built with **CustomTkinter** and **Tkinter**, featuring:
 
