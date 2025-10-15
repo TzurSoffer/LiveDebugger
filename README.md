@@ -5,7 +5,7 @@
 
 ## Showcase
 <video width="480" height="270" controls>
-  <source src="Showcase.mp4" type="video/mp4">
+  <source src="https://github.com/TzurSoffer/Pysole/blob/main/Showcase.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
