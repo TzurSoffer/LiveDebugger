@@ -327,7 +327,8 @@ class InteractiveConsole(ctk.CTk):
         self.mainloop(*args, **kwargs)
 
 def probe(userGlobals=None, userLocals=None, callerFrame=None,
-          runRemainingCode=False, printStartupCode=False, **kwargs):
+          runRemainingCode=False, printStartupCode=False,
+          primaryPrompt=None, font=None, fontSize=None, **kwargs):
     if callerFrame == None:
         callerFrame = inspect.currentframe().f_back
     InteractiveConsole(userGlobals=userGlobals,
@@ -335,6 +336,10 @@ def probe(userGlobals=None, userLocals=None, callerFrame=None,
                               callerFrame=callerFrame,
                               runRemainingCode=runRemainingCode,
                               printStartupCode=printStartupCode,
+                              primaryPrompt=primaryPrompt,
+                              font=font,
+                              fontSize=fontSize,
+                              removeWaterMark=False,
                               **kwargs).probe()
 
 def _standalone():
