@@ -8,6 +8,10 @@ readme = "README.md"
 requires-python = ">=3.7"
 dependencies = ["customtkinter", "pygments"]
 
+[project.urls]
+Homepage = "https://github.com/TzurSoffer/Pysole"
+Repository = "https://github.com/TzurSoffer/Pysole"
+
 [project.scripts]
 liveconsole = "liveConsole:_standalone"
 pysole = "pysole:_standalone"
