@@ -17,7 +17,9 @@ def average(numbers):
 
 if __name__ == "__main__":
     # Launch the live console for interactive testing
-    pysole.probe(runRemainingCode=True, printStartupCode=True)
+    pysole.probe(runRemainingCode=True,
+                 printStartupCode=True
+                 )
     # Demo code to show off startup ability
     add(1,2)
     greet("Alice")

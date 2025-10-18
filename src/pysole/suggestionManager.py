@@ -107,8 +107,11 @@ class CodeSuggestionManager:
         self.suggestionListbox.selection_set(0)
         
         # Position window near cursor
-        self._positionSuggestionWindow()
-        self.suggestionWindow.deiconify()
+        try:      #< some weird errors idk
+            self._positionSuggestionWindow()
+            self.suggestionWindow.deiconify()
+        except:
+            pass
     
     def _createSuggestionWindow(self):
         """Create the suggestion popup window."""

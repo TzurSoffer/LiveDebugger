@@ -8,7 +8,7 @@ import sys
 import io
 import json
 
-from .utils import settingsPath, themesPath, stdPrint
+from .utils import settingsPath, themesPath, stdPrint, normalizeWhitespace, findUnindentedLine
 from .helpTab import HelpTab
 from .mainConsole import InteractiveConsoleText
 
@@ -73,6 +73,7 @@ class InteractiveConsole(ctk.CTk):
             if userLocals is None:
                 userLocals = callerFrame.f_locals
 
+        self.callerFrame = callerFrame
         self.userGlobals = userGlobals
         self.userLocals = userLocals
 
@@ -87,20 +88,30 @@ class InteractiveConsole(ctk.CTk):
         self.runRemainingCode = runRemainingCode
         self.printStartupCode = printStartupCode
         self.removeWaterMark = removeWaterMark
-        self.startupCode = ()
+        self.startupCode = []
         if runRemainingCode:
-            code_obj = callerFrame.f_code
-            filename = code_obj.co_filename
+            self.startupCode = self._getStartupCode()
+    
+    def _getStartupCode(self):
+        code_obj = self.callerFrame.f_code
+        callStartLineIndex = inspect.getframeinfo(self.callerFrame).positions.lineno     #< start of the probe call
+        callEndLineIndex = inspect.getframeinfo(self.callerFrame).positions.end_lineno   #< end of the probe call
+        filename = code_obj.co_filename
 
-            # Read the rest of the file after the call to probe()
-            with open(filename, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+        # Read the rest of the file after the call to probe()
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = f.readlines()
 
-            startLineIndex = callerFrame.f_lineno
-            startLine = lines[startLineIndex - 1]
-            leadingWhitespaceLen = len(startLine) - len(startLine.lstrip())
-            self.startupCode = lines[startLineIndex:]
-            self.startupCode = [line.rstrip()[leadingWhitespaceLen:] for line in self.startupCode]
+        startLine = lines[callStartLineIndex-1]
+        for line in lines[callStartLineIndex:callEndLineIndex]:
+            startLine += line.strip()
+
+        startupCode = normalizeWhitespace(lines[callEndLineIndex:])        #< ensure the code is not indented too much (egg if in __name__ == "__main__")
+        firstUnindentedLine = findUnindentedLine(startupCode)
+        while firstUnindentedLine != 0 and firstUnindentedLine != None:    #< handle if probe is inside a loop/if/etc by simply unindenting the call (while is for nested calls)
+            startupCode[:firstUnindentedLine] = normalizeWhitespace(startupCode[:firstUnindentedLine])
+            firstUnindentedLine = findUnindentedLine(startupCode)
+        return(startupCode)
 
     def _createMenu(self):
         """Create a menu bar using CTkOptionMenu."""
