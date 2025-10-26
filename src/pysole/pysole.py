@@ -213,7 +213,7 @@ class InteractiveConsole(ctk.CTk):
         def saveSettings():
             try:
                 newSettings = json.loads(textbox.get("0.0", "end-1c"))
-                with open("settings.json", "w") as f:
+                with open(settingsPath, "w") as f:
                     json.dump(newSettings, f, indent=4)
                 messagebox.showinfo("Success", "Settings saved!")
                 editor.destroy()
